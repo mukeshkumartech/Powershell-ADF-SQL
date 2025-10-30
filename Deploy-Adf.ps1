@@ -10,10 +10,12 @@ if (-not $AdfRootFolder) {
 
 Write-Host "Using ADF root folder: $AdfRootFolder"
 
+Write-Host "Installing required module..."
 Install-Module azure.datafactory.tools -Scope CurrentUser -Force -AllowClobber
 
-Connect-AzAccount -Identity
+Write-Host "Using Azure DevOps service connection authentication — no manual login needed."
 
+Write-Host "Publishing ADF from JSON files..."
 Publish-AdfV2FromJson `
     -RootFolder $AdfRootFolder `
     -ResourceGroupName $ResourceGroupName `
