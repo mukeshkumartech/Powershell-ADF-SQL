@@ -1,16 +1,19 @@
 param(
     [string]$ResourceGroupName,
     [string]$DataFactoryName,
-    [string]$AdfRootFolder = "$(System.DefaultWorkingDirectory)"
+    [string]$AdfRootFolder
 )
 
-Write-Host "Installing required module..."
+if (-not $AdfRootFolder) {
+    $AdfRootFolder = $env:SYSTEM_DEFAULTWORKINGDIRECTORY
+}
+
+Write-Host "Using ADF root folder: $AdfRootFolder"
+
 Install-Module azure.datafactory.tools -Scope CurrentUser -Force -AllowClobber
 
-Write-Host "Connecting to Azure..."
 Connect-AzAccount -Identity
 
-Write-Host "Publishing ADF from JSON files..."
 Publish-AdfV2FromJson `
     -RootFolder $AdfRootFolder `
     -ResourceGroupName $ResourceGroupName `
