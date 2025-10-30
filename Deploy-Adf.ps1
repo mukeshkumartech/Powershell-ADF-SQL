@@ -11,10 +11,10 @@ if (-not $AdfRootFolder) {
 Write-Host "Using ADF root folder: $AdfRootFolder"
 
 Write-Host "Installing required module..."
-Install-Module azure.datafactory.tools -Scope CurrentUser -Force -AllowClobber
+Install-Module azure.datafactory.tools -Scope CurrentUser -Force -AllowClobber -MinimumVersion 0.103.0
 
 Write-Host "Connecting to Azure..."
-# use the service connection credentials (already authenticated)
+# The pipeline’s service connection already handles authentication
 $ctx = Get-AzContext
 Write-Host "Connected to subscription: $($ctx.Subscription.Id)"
 
