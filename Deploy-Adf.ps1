@@ -35,8 +35,10 @@ if (-not $ctx) {
 }
 Write-Host "Connected to subscription: $($ctx.Subscription.Id)"
 
-# --- Build config file path ---
-$configFile = Join-Path $AdfRootFolder "deployment\config-dev.json"
+# --- Determine config path (inside your project folder) ---
+$stage = "dev"   # change or make dynamic later
+$configFile = Join-Path $AdfRootFolder "_Powershell-ADF-SQL\Config\config-$stage.json"
+
 if (-not (Test-Path $configFile)) {
     Write-Error "❌ Configuration file not found: $configFile"
     exit 1
@@ -49,7 +51,7 @@ $commonParams = @{
     ResourceGroupName = $ResourceGroupName
     DataFactoryName   = $DataFactoryName
     Location          = "East US"
-    Stage             = "dev"
+    Stage             = $stage
     ConfigurationFile = $configFile
     DryRun            = $false
 }
