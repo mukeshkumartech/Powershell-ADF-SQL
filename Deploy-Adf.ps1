@@ -36,7 +36,7 @@ if (-not $ctx) {
 Write-Host "Connected to subscription: $($ctx.Subscription.Id)"
 
 # --- Determine config path (inside your project folder) ---
-$stage = "dev"   # change or make dynamic later
+$stage = "dev"
 $configFile = Join-Path $AdfRootFolder "_Powershell-ADF-SQL\Config\config-$stage.json"
 
 if (-not (Test-Path $configFile)) {
@@ -45,24 +45,31 @@ if (-not (Test-Path $configFile)) {
 }
 Write-Host "Using configuration file: $configFile"
 
-# --- Prepare parameters ---
+# --- Load JSON config manually ---
+$config = Get-Content $configFile | ConvertFrom-Json
+
+# --- Prepare parameters for ADF deployment ---
 $commonParams = @{
     RootFolder        = $AdfRootFolder
     ResourceGroupName = $ResourceGroupName
     DataFactoryName   = $DataFactoryName
-    Location          = "East US"
-    Stage             = $stage
-    ConfigurationFile = $configFile
+    Location          = if ($config.Location) { $config.Location } else { "East US" }
+    Stage             = if ($config.Stage) { $config.Stage } else { $stage }
     DryRun            = $false
 }
 
-# --- Detect if DeleteNotInSource is supported ---
+# --- Handle optional DeleteNotInSource flag ---
 $hasDeleteParam = (Get-Command Publish-AdfV2FromJson).Parameters.ContainsKey('DeleteNotInSource')
 if ($hasDeleteParam) {
-    Write-Host "Using parameter -DeleteNotInSource $false"
-    $commonParams['DeleteNotInSource'] = $false
+    $deleteFlag = if ($config.PSObject.Properties.Name -contains 'DeleteNotInSource') { 
+        [bool]$config.DeleteNotInSource 
+    } else { 
+        $false 
+    }
+    Write-Host "Using parameter -DeleteNotInSource $deleteFlag"
+    $commonParams['DeleteNotInSource'] = $deleteFlag
 } else {
-    Write-Host " Module version $adfToolsVersion does not support -DeleteNotInSource. Skipping that parameter."
+    Write-Host "Module version $adfToolsVersion does not support -DeleteNotInSource. Skipping that parameter."
 }
 
 # --- Run publish ---
