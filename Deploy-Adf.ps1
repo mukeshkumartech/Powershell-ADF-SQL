@@ -4,7 +4,7 @@ param(
     [string]$AdfRootFolder
 )
 
-# Default to the working directory
+# --- Default to the working directory ---
 if (-not $AdfRootFolder) {
     $AdfRootFolder = $env:SYSTEM_DEFAULTWORKINGDIRECTORY
 }
@@ -35,6 +35,14 @@ if (-not $ctx) {
 }
 Write-Host "Connected to subscription: $($ctx.Subscription.Id)"
 
+# --- Build config file path ---
+$configFile = Join-Path $AdfRootFolder "deployment\config-dev.json"
+if (-not (Test-Path $configFile)) {
+    Write-Error "❌ Configuration file not found: $configFile"
+    exit 1
+}
+Write-Host "Using configuration file: $configFile"
+
 # --- Prepare parameters ---
 $commonParams = @{
     RootFolder        = $AdfRootFolder
@@ -42,6 +50,7 @@ $commonParams = @{
     DataFactoryName   = $DataFactoryName
     Location          = "East US"
     Stage             = "dev"
+    ConfigurationFile = $configFile
     DryRun            = $false
 }
 
