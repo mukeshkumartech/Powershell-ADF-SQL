@@ -1,0 +1,12 @@
+{
+  "Environment": "Dev",
+  "KeyVaultName": "kv-sql-demo-dev",
+  "SqlServer": "sqldemo-12345.database.windows.net",
+  "DatabaseName": "TestDatabase",
+  "TableName": "TestTable",
+  "UseManagedIdentity": true,
+  "SecretsFile": "../Config/secrets-dev.json"
+}
+
+
+
