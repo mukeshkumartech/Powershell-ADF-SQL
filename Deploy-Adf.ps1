@@ -67,11 +67,8 @@ if (-not (Test-Path $csvConfigFile)) {
     $databaseName = if ($config.DatabaseName) { $config.DatabaseName } else { "TestDatabase" }
     $tableName = if ($config.TableName) { $config.TableName } else { "TestTable" }
     
-   $csvContent = @"
+  $csvContent = @"
 type,name,path,value
-pipeline,ExecutePowerShellScript,parameters.SqlServer.defaultValue,$sqlServer
-pipeline,ExecutePowerShellScript,parameters.DatabaseName.defaultValue,$databaseName
-pipeline,ExecutePowerShellScript,parameters.TableName.defaultValue,$tableName
 "@
     $csvContent | Out-File -FilePath $csvConfigFile -Encoding UTF8
     Write-Host "Created CSV config file: $csvConfigFile"
