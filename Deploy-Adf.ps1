@@ -35,61 +35,35 @@ if (-not $ctx) {
 }
 Write-Host "Connected to subscription: $($ctx.Subscription.Id)"
 
-# --- Determine config path ---
-$stage = "dev"
-$configFile = Join-Path $AdfRootFolder "Config\config-$stage.json"
-
-if (-not (Test-Path $configFile)) {
-    Write-Warning "Configuration file not found: $configFile"
-    Write-Host "Using default configuration values"
-    $config = @{
-        SqlServer = "sqldemo-12345.database.windows.net"
-        DatabaseName = "TestDatabase"
-        TableName = "TestTable"
-        Location = "East US"
-    }
-} else {
-    Write-Host "Using configuration file: $configFile"
-    $config = Get-Content $configFile | ConvertFrom-Json
-}
-
-# --- Create deployment folder and EMPTY CSV config ---
+# --- Create deployment folder ---
 $deploymentFolder = Join-Path $AdfRootFolder "deployment"
 if (-not (Test-Path $deploymentFolder)) {
     New-Item -ItemType Directory -Path $deploymentFolder -Force
     Write-Host "Created deployment folder: $deploymentFolder"
 }
 
-$csvConfigFile = Join-Path $deploymentFolder "config-$stage.csv"
-if (-not (Test-Path $csvConfigFile)) {
-    # Create EMPTY CSV - no parameter replacements needed
-    "type,name,path,value" | Out-File -FilePath $csvConfigFile -Encoding UTF8
-    Write-Host "Created empty CSV config file: $csvConfigFile"
-    Write-Host "No parameter replacements needed - pipeline uses hardcoded values"
-} else {
-    Write-Host "Using existing CSV config file: $csvConfigFile"
-}
+# --- Create PublishOptions object to bypass CSV issues ---
+Write-Host "Creating deployment options to bypass CSV configuration..."
+$publishOptions = New-Object AdfPublishOption
+$publishOptions.Includes.Add("*", "")
+$publishOptions.Excludes.Add("", "")
 
 # --- Prepare parameters for ADF deployment ---
 $commonParams = @{
     RootFolder        = $AdfRootFolder
     ResourceGroupName = $ResourceGroupName
     DataFactoryName   = $DataFactoryName
-    Location          = if ($config.Location) { $config.Location } else { "East US" }
-    Stage             = $stage
+    Location          = "East US"
+    Stage             = "dev"
+    Options           = $publishOptions
     DryRun            = $false
 }
 
 # --- Handle optional DeleteNotInSource flag ---
 $hasDeleteParam = (Get-Command Publish-AdfV2FromJson).Parameters.ContainsKey('DeleteNotInSource')
 if ($hasDeleteParam) {
-    $deleteFlag = if ($config.PSObject.Properties.Name -contains 'DeleteNotInSource') { 
-        [bool]$config.DeleteNotInSource 
-    } else { 
-        $false 
-    }
-    Write-Host "Using parameter -DeleteNotInSource $deleteFlag"
-    $commonParams['DeleteNotInSource'] = $deleteFlag
+    $commonParams['DeleteNotInSource'] = $false
+    Write-Host "Using parameter -DeleteNotInSource False"
 } else {
     Write-Host "Module version $adfToolsVersion does not support -DeleteNotInSource. Skipping that parameter."
 }
@@ -97,8 +71,23 @@ if ($hasDeleteParam) {
 # --- Run publish ---
 Write-Host "Publishing ADF from JSON files..."
 Write-Host "Parameters:"
-$commonParams.GetEnumerator() | ForEach-Object { Write-Host "  $($_.Key): $($_.Value)" }
+$commonParams.GetEnumerator() | Where-Object { $_.Key -ne 'Options' } | ForEach-Object { Write-Host "  $($_.Key): $($_.Value)" }
 
-Publish-AdfV2FromJson @commonParams
-
-Write-Host "✅ ADF deployment completed successfully!"
+try {
+    Publish-AdfV2FromJson @commonParams
+    Write-Host "✅ ADF deployment completed successfully!"
+} catch {
+    Write-Host "❌ Deployment failed with options, trying without options..."
+    $commonParams.Remove('Options')
+    
+    # Create minimal CSV as fallback
+    $csvConfigFile = Join-Path $deploymentFolder "config-dev.csv"
+    @"
+type,name,path,value
+linkedService,DummyService,properties.dummyProperty,dummyValue
+"@ | Out-File -FilePath $csvConfigFile -Encoding UTF8
+    Write-Host "Created minimal CSV as fallback: $csvConfigFile"
+    
+    Publish-AdfV2FromJson @commonParams
+    Write-Host "✅ ADF deployment completed successfully with fallback method!"
+}
