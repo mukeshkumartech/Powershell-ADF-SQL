@@ -19,43 +19,10 @@
                     "scripts": [
                         {
                             "type": "PowerShell",
-                            "text": "param(\n    [string]$SqlServer,\n    [string]$DatabaseName,\n    [string]$TableName\n)\n\n# PowerShell script to connect to SQL using Managed Identity\n$ErrorActionPreference = 'Stop'\n\ntry {\n    Write-Output \"Starting PowerShell script execution...\"\n    Write-Output \"Target: Server=$SqlServer, Database=$DatabaseName, Table=$TableName\"\n    \n    # Connection string using Managed Identity\n    $connectionString = \"Server=$SqlServer;Database=$DatabaseName;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;\"\n    \n    Write-Output \"Connecting to SQL Database using Managed Identity...\"\n    $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)\n    $connection.Open()\n    Write-Output \"Successfully connected to SQL Database!\"\n    \n    # Example: Get record count\n    $countQuery = \"SELECT COUNT(*) as RecordCount FROM [$TableName]\"\n    $countCommand = New-Object System.Data.SqlClient.SqlCommand($countQuery, $connection)\n    $recordCount = $countCommand.ExecuteScalar()\n    Write-Output \"Current record count in $TableName: $recordCount\"\n    \n    # Example: Insert a test record with timestamp\n    $insertQuery = \"INSERT INTO [$TableName] (Column1, Column2, ProcessedDate) VALUES ('ADF-PowerShell', 'ManagedIdentity', GETDATE())\"\n    $insertCommand = New-Object System.Data.SqlClient.SqlCommand($insertQuery, $connection)\n    $rowsAffected = $insertCommand.ExecuteNonQuery()\n    Write-Output \"Inserted $rowsAffected record(s) successfully\"\n    \n    # Close connection\n    $connection.Close()\n    Write-Output \"Connection closed successfully\"\n    Write-Output \"PowerShell script completed successfully!\"\n}\ncatch {\n    Write-Error \"Error occurred: $($_.Exception.Message)\"\n    if ($connection -and $connection.State -eq 'Open') {\n        $connection.Close()\n    }\n    throw\n}",
-                            "parameters": [
-                                {
-                                    "name": "SqlServer",
-                                    "type": "String",
-                                    "direction": "Input",
-                                    "value": {
-                                        "value": "@pipeline().parameters.SqlServer",
-                                        "type": "Expression"
-                                    }
-                                },
-                                {
-                                    "name": "DatabaseName",
-                                    "type": "String",
-                                    "direction": "Input",
-                                    "value": {
-                                        "value": "@pipeline().parameters.DatabaseName",
-                                        "type": "Expression"
-                                    }
-                                },
-                                {
-                                    "name": "TableName",
-                                    "type": "String",
-                                    "direction": "Input",
-                                    "value": {
-                                        "value": "@pipeline().parameters.TableName",
-                                        "type": "Expression"
-                                    }
-                                }
-                            ]
+                            "text": "# PowerShell script to connect to SQL using Managed Identity\n$ErrorActionPreference = 'Stop'\n\n$SqlServer = '@{pipeline().parameters.SqlServer}'\n$DatabaseName = '@{pipeline().parameters.DatabaseName}'\n$TableName = '@{pipeline().parameters.TableName}'\n\ntry {\n    Write-Output \"Starting PowerShell script execution...\"\n    Write-Output \"Target: Server=$SqlServer, Database=$DatabaseName, Table=$TableName\"\n    \n    # Connection string using Managed Identity\n    $connectionString = \"Server=$SqlServer;Database=$DatabaseName;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;\"\n    \n    Write-Output \"Connecting to SQL Database using Managed Identity...\"\n    $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)\n    $connection.Open()\n    Write-Output \"Successfully connected to SQL Database!\"\n    \n    # Example: Get record count\n    $countQuery = \"SELECT COUNT(*) as RecordCount FROM [$TableName]\"\n    $countCommand = New-Object System.Data.SqlClient.SqlCommand($countQuery, $connection)\n    $recordCount = $countCommand.ExecuteScalar()\n    Write-Output \"Current record count in $TableName: $recordCount\"\n    \n    # Example: Insert a test record with timestamp\n    $insertQuery = \"INSERT INTO [$TableName] (Column1, Column2, ProcessedDate) VALUES ('ADF-PowerShell', 'ManagedIdentity', GETDATE())\"\n    $insertCommand = New-Object System.Data.SqlClient.SqlCommand($insertQuery, $connection)\n    $rowsAffected = $insertCommand.ExecuteNonQuery()\n    Write-Output \"Inserted $rowsAffected record(s) successfully\"\n    \n    # Close connection\n    $connection.Close()\n    Write-Output \"Connection closed successfully\"\n    Write-Output \"PowerShell script completed successfully!\"\n}\ncatch {\n    Write-Error \"Error occurred: $($_.Exception.Message)\"\n    if ($connection -and $connection.State -eq 'Open') {\n        $connection.Close()\n    }\n    throw\n}"
                         }
                     ],
-                    "scriptBlockExecutionTimeout": "02:00:00",
-                    "linkedService": {
-                        "referenceName": "AutoResolveIntegrationRuntime",
-                        "type": "IntegrationRuntimeReference"
-                    }
+                    "scriptBlockExecutionTimeout": "02:00:00"
                 }
             }
         ],
