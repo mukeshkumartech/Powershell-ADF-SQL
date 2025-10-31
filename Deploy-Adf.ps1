@@ -48,6 +48,22 @@ Write-Host "Using configuration file: $configFile"
 # --- Load JSON config manually ---
 $config = Get-Content $configFile | ConvertFrom-Json
 
+# --- Create deployment folder and empty CSV config if needed ---
+$deploymentFolder = Join-Path $AdfRootFolder "deployment"
+if (-not (Test-Path $deploymentFolder)) {
+    New-Item -ItemType Directory -Path $deploymentFolder -Force
+    Write-Host "Created deployment folder: $deploymentFolder"
+}
+
+$csvConfigFile = Join-Path $deploymentFolder "config-$stage.csv"
+if (-not (Test-Path $csvConfigFile)) {
+    # Create empty CSV with just headers (no environment replacements needed)
+    "type,name,path,value" | Out-File -FilePath $csvConfigFile -Encoding UTF8
+    Write-Host "Created empty CSV config file: $csvConfigFile"
+} else {
+    Write-Host "Using existing CSV config file: $csvConfigFile"
+}
+
 # --- Prepare parameters for ADF deployment ---
 $commonParams = @{
     RootFolder        = $AdfRootFolder
