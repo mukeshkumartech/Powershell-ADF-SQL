@@ -4,6 +4,7 @@
   "SqlServer": "sqldemo-12345.database.windows.net",
   "DatabaseName": "TestDatabase",
   "TableName": "TestTable",
+  "Location": "East US",
   "UseManagedIdentity": true,
   "SecretsFile": "../Config/secrets-dev.json"
 }
