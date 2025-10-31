@@ -1,4 +1,4 @@
-# Azure Data Factory Deployment Script - SIMPLE & WORKING
+# Azure Data Factory Deployment Script - FIXED ENCODING
 param(
     [Parameter(Mandatory=$true)]
     [string]$ResourceGroupName,
@@ -29,4 +29,4 @@ Write-Host "Connected to: $($context.Subscription.Id)"
 Write-Host "Deploying ADF..."
 Publish-AdfV2FromJson -RootFolder $AdfRootFolder -ResourceGroupName $ResourceGroupName -DataFactoryName $DataFactoryName
 
-Write-Host "✓ DEPLOYMENT COMPLETED!"
+Write-Host "SUCCESS: DEPLOYMENT COMPLETED!"
