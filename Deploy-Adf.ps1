@@ -53,7 +53,7 @@ if (-not (Test-Path $configFile)) {
     $config = Get-Content $configFile | ConvertFrom-Json
 }
 
-# --- Create deployment folder and CSV config ---
+# --- Create deployment folder and EMPTY CSV config ---
 $deploymentFolder = Join-Path $AdfRootFolder "deployment"
 if (-not (Test-Path $deploymentFolder)) {
     New-Item -ItemType Directory -Path $deploymentFolder -Force
@@ -62,20 +62,10 @@ if (-not (Test-Path $deploymentFolder)) {
 
 $csvConfigFile = Join-Path $deploymentFolder "config-$stage.csv"
 if (-not (Test-Path $csvConfigFile)) {
-    # Create CSV config with proper values from JSON config
-    $sqlServer = if ($config.SqlServer) { $config.SqlServer } else { "sqldemo-12345.database.windows.net" }
-    $databaseName = if ($config.DatabaseName) { $config.DatabaseName } else { "TestDatabase" }
-    $tableName = if ($config.TableName) { $config.TableName } else { "TestTable" }
-    
-  $csvContent = @"
-type,name,path,value
-"@
-    $csvContent | Out-File -FilePath $csvConfigFile -Encoding UTF8
-    Write-Host "Created CSV config file: $csvConfigFile"
-    Write-Host "CSV Configuration:"
-    Write-Host "  SQL Server: $sqlServer"
-    Write-Host "  Database: $databaseName"
-    Write-Host "  Table: $tableName"
+    # Create EMPTY CSV - no parameter replacements needed
+    "type,name,path,value" | Out-File -FilePath $csvConfigFile -Encoding UTF8
+    Write-Host "Created empty CSV config file: $csvConfigFile"
+    Write-Host "No parameter replacements needed - pipeline uses hardcoded values"
 } else {
     Write-Host "Using existing CSV config file: $csvConfigFile"
 }
