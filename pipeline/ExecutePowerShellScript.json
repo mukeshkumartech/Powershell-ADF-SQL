@@ -1,21 +1,29 @@
 {
-    "name": "RunPowerShellWithSQL",
-    "type": "Script",
-    "dependsOn": [],
-    "policy": {
-        "timeout": "0.12:00:00",
-        "retry": 0,
-        "retryIntervalInSeconds": 30,
-        "secureOutput": false,
-        "secureInput": false
-    },
-    "userProperties": [],
-    "typeProperties": {
-        "scripts": [
+    "name": "ExecutePowerShellScript",
+    "properties": {
+        "activities": [
             {
-                "type": "PowerShell",
-                "text": "# Your PowerShell script here..."
+                "name": "RunPowerShellWithSQL",
+                "type": "Script",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "scripts": [
+                        {
+                            "type": "PowerShell",
+                            "text": "try {\n    Write-Host \"Starting PowerShell script execution...\"\n    \n    # Install required modules\n    Write-Host \"Installing SqlServer module...\"\n    Install-Module -Name SqlServer -Force -AllowClobber -Scope CurrentUser\n    Import-Module SqlServer\n    \n    # Database connection details - UPDATE THESE VALUES\n    $serverName = \"your-sql-server.database.windows.net\"\n    $databaseName = \"your-database-name\"\n    \n    Write-Host \"Connecting to database: $serverName/$databaseName\"\n    \n    # Connect using Managed Identity\n    $accessToken = (Invoke-RestMethod -Uri 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://database.windows.net/' -Method GET -Headers @{Metadata=\"true\"}).access_token\n    \n    # Execute SQL query\n    $query = \"SELECT GETDATE() as CurrentDateTime, USER_NAME() as CurrentUser, @@VERSION as SQLVersion\"\n    \n    Write-Host \"Executing query: $query\"\n    \n    $result = Invoke-Sqlcmd -ServerInstance $serverName -Database $databaseName -AccessToken $accessToken -Query $query\n    \n    Write-Host \"Query Results:\"\n    $result | Format-Table\n    \n    Write-Host \"PowerShell script execution completed successfully!\"\n    \n} catch {\n    Write-Error \"Script execution failed: $($_.Exception.Message)\"\n    Write-Host \"Error details: $($_.Exception.ToString())\"\n    throw\n}"
+                        }
+                    ]
+                }
             }
-        ]
+        ],
+        "annotations": []
     }
 }
