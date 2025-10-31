@@ -35,20 +35,25 @@ if (-not $ctx) {
 }
 Write-Host "Connected to subscription: $($ctx.Subscription.Id)"
 
-# --- Determine config path (inside your project folder) ---
+# --- Determine config path ---
 $stage = "dev"
-$configFile = Join-Path $AdfRootFolder "_Powershell-ADF-SQL\Config\config-$stage.json"
+$configFile = Join-Path $AdfRootFolder "Config\config-$stage.json"
 
 if (-not (Test-Path $configFile)) {
-    Write-Error "❌ Configuration file not found: $configFile"
-    exit 1
+    Write-Warning "Configuration file not found: $configFile"
+    Write-Host "Using default configuration values"
+    $config = @{
+        SqlServer = "sqldemo-12345.database.windows.net"
+        DatabaseName = "TestDatabase"
+        TableName = "TestTable"
+        Location = "East US"
+    }
+} else {
+    Write-Host "Using configuration file: $configFile"
+    $config = Get-Content $configFile | ConvertFrom-Json
 }
-Write-Host "Using configuration file: $configFile"
 
-# --- Load JSON config manually ---
-$config = Get-Content $configFile | ConvertFrom-Json
-
-# --- Create deployment folder and empty CSV config if needed ---
+# --- Create deployment folder and CSV config ---
 $deploymentFolder = Join-Path $AdfRootFolder "deployment"
 if (-not (Test-Path $deploymentFolder)) {
     New-Item -ItemType Directory -Path $deploymentFolder -Force
@@ -57,9 +62,23 @@ if (-not (Test-Path $deploymentFolder)) {
 
 $csvConfigFile = Join-Path $deploymentFolder "config-$stage.csv"
 if (-not (Test-Path $csvConfigFile)) {
-    # Create empty CSV with just headers (no environment replacements needed)
-    "type,name,path,value" | Out-File -FilePath $csvConfigFile -Encoding UTF8
-    Write-Host "Created empty CSV config file: $csvConfigFile"
+    # Create CSV config with proper values from JSON config
+    $sqlServer = if ($config.SqlServer) { $config.SqlServer } else { "sqldemo-12345.database.windows.net" }
+    $databaseName = if ($config.DatabaseName) { $config.DatabaseName } else { "TestDatabase" }
+    $tableName = if ($config.TableName) { $config.TableName } else { "TestTable" }
+    
+    $csvContent = @"
+type,name,path,value
+pipeline,ExecutePowerShellScript,properties.parameters.SqlServer.defaultValue,$sqlServer
+pipeline,ExecutePowerShellScript,properties.parameters.DatabaseName.defaultValue,$databaseName
+pipeline,ExecutePowerShellScript,properties.parameters.TableName.defaultValue,$tableName
+"@
+    $csvContent | Out-File -FilePath $csvConfigFile -Encoding UTF8
+    Write-Host "Created CSV config file: $csvConfigFile"
+    Write-Host "CSV Configuration:"
+    Write-Host "  SQL Server: $sqlServer"
+    Write-Host "  Database: $databaseName"
+    Write-Host "  Table: $tableName"
 } else {
     Write-Host "Using existing CSV config file: $csvConfigFile"
 }
@@ -70,7 +89,7 @@ $commonParams = @{
     ResourceGroupName = $ResourceGroupName
     DataFactoryName   = $DataFactoryName
     Location          = if ($config.Location) { $config.Location } else { "East US" }
-    Stage             = if ($config.Stage) { $config.Stage } else { $stage }
+    Stage             = $stage
     DryRun            = $false
 }
 
@@ -90,6 +109,9 @@ if ($hasDeleteParam) {
 
 # --- Run publish ---
 Write-Host "Publishing ADF from JSON files..."
+Write-Host "Parameters:"
+$commonParams.GetEnumerator() | ForEach-Object { Write-Host "  $($_.Key): $($_.Value)" }
+
 Publish-AdfV2FromJson @commonParams
 
 Write-Host "✅ ADF deployment completed successfully!"
