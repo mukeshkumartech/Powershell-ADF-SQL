@@ -29,7 +29,7 @@ pr:
 variables:
   vmImageName: 'windows-latest'
   servicePrincipalName: 'sp-sql-automation'
-  tableName: 'TestTable'
+  tableName: 'EmployeeData'
 
 resources:
   repositories:
