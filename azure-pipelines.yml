@@ -64,9 +64,34 @@ stages:
       sqlServerVar: 'DEV_SQL_SERVER'
       databaseNameVar: 'DEV_DATABASE_NAME'
       keyVaultNameVar: 'DEV_KEY_VAULT_NAME'
-      serviceConnectionVar: 'DEV_SERVICE_CONNECTION'      # FIXED: Now points to variable name
-      servicePrincipalName: 'SERVICE_PRINCIPAL_NAME'     # FIXED: Now points to variable name
-      tableName: 'TABLE_NAME'                            # FIXED: Now points to variable name
+      serviceConnection: 'adf-sql-demo-app-registration'    # DIRECT service connection name
+      servicePrincipalNameVar: 'SERVICE_PRINCIPAL_NAME'     # Variable name from Variable Group
+      tableNameVar: 'TABLE_NAME'                            # Variable name from Variable Group
       runMode: 'single'
       runIntervalMinutes: 1
       maxIterations: 1
+
+#################################################################
+# STAGE 3: CONTINUOUS DEPLOYMENT - PRODUCTION
+#################################################################
+- stage: CD_Production
+  displayName: 'Deploy to Production'
+  dependsOn: CD_Development
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  variables:
+  - group: SQL-Database-Prod
+  jobs:
+  - template: pipelines/cd-pipeline.yml
+    parameters:
+      environment: 'Production'
+      vmImageName: $(vmImageName)
+      variableGroup: 'SQL-Database-Prod'
+      sqlServerVar: 'PROD_SQL_SERVER'
+      databaseNameVar: 'PROD_DATABASE_NAME'
+      keyVaultNameVar: 'PROD_KEY_VAULT_NAME'
+      serviceConnection: 'adf-sql-demo-app-registration-prod'  # Different prod service connection
+      servicePrincipalNameVar: 'SERVICE_PRINCIPAL_NAME'
+      tableNameVar: 'TABLE_NAME'
+      runMode: 'continuous'
+      runIntervalMinutes: 30
+      maxIterations: 0
