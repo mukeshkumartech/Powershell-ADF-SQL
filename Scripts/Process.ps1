@@ -5,10 +5,10 @@ using namespace System.Collections.Generic
 . "$PSScriptRoot/../Modules/DatabaseOperations.ps1"
 
 class DataProcessor {
-    [DatabaseOperations] $DbOps
+    $DbOps
     [string] $TableName
 
-    DataProcessor([DatabaseOperations] $dbOps, [string] $tableName) {
+    DataProcessor($dbOps, [string] $tableName) {
         if ($null -eq $dbOps) { throw "Database Operations cannot be null" }
         if ([string]::IsNullOrWhiteSpace($tableName)) { throw "TableName cannot be null or empty" }
         $this.DbOps = $dbOps
@@ -19,9 +19,19 @@ class DataProcessor {
         Write-Host "Reading top 5 records from table $($this.TableName)..." -ForegroundColor Yellow
         
         $querySelect = "SELECT TOP 5 EmployeeID, UserName, Department FROM [$($this.TableName)]"
-        $data = $this.DbOps.GetData($querySelect)
+        Write-Host "Executing query: $querySelect" -ForegroundColor Cyan
+        $data = & $this.DbOps.GetData $querySelect
+        Write-Host "Data type: $($data.GetType().FullName)" -ForegroundColor Cyan
+        if ($data -ne $null) {
+            Write-Host "Data has Rows property: $($data.PSObject.Properties.Name -contains 'Rows')" -ForegroundColor Cyan
+            if ($data.PSObject.Properties.Name -contains 'Rows') {
+                Write-Host "Rows count: $($data.Rows.Count)" -ForegroundColor Cyan
+            } else {
+                Write-Host "Data count: $($data.Count)" -ForegroundColor Cyan
+            }
+        }
 
-        if ($data.Rows.Count -eq 0) {
+        if ($data -eq $null -or $data.Count -eq 0) {
             Write-Host "No data found in $($this.TableName)." -ForegroundColor Yellow
             return 0
         }
@@ -30,7 +40,7 @@ class DataProcessor {
         $updates = [List[hashtable]]::new()
 
         # Prepare all updates first (PowerShell 7+ enhanced foreach)
-        foreach ($row in $data.Rows) {
+        foreach ($row in $data) {
             $employeeId = $row["EmployeeID"]
             $userName = $row["UserName"]
             $department = $row["Department"]
@@ -70,7 +80,7 @@ class DataProcessor {
             Write-Host "Updating Employee $($update.EmployeeId) ($($update.UserName)): '$($update.OldDepartment)' → '$($update.NewDepartment)'" -ForegroundColor Cyan
             
             try {
-                $this.DbOps.ExecuteParameterized($update.Query, $update.Parameters)
+                & $this.DbOps.ExecuteParameterized $update.Query $update.Parameters
                 $processedCount++
                 Write-Host "  ✅ Successfully updated Employee $($update.EmployeeId)" -ForegroundColor Green
             }
@@ -79,7 +89,7 @@ class DataProcessor {
             }
         }
 
-        Write-Host "Data processing completed for $($this.TableName). Processed: $processedCount/$($data.Rows.Count) records." -ForegroundColor Green
+        Write-Host "Data processing completed for $($this.TableName). Processed: $processedCount/$($data.Count) records." -ForegroundColor Green
         return $processedCount
     }
 }
