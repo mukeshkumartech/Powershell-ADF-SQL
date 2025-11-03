@@ -38,8 +38,6 @@ class DatabaseConnection {
 
             Write-Host "Fetching secrets from Key Vault..." -ForegroundColor Yellow
             
-            Write-Host "Fetching secrets from Key Vault..." -ForegroundColor Yellow
-            
             # Retrieve secrets directly
             $secrets = @{
                 ClientId = $this.GetKeyVaultSecret($keyVaultName, $clientIdSecretName)
