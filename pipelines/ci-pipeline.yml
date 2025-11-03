@@ -15,20 +15,21 @@ jobs:
   - checkout: self
     displayName: 'Checkout GitHub Repository'
     persistCredentials: true
+- task: PowerShell@2
+  displayName: 'Set PowerShell Execution Policy'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Write-Host "PowerShell execution policy is already configured in Azure DevOps" -ForegroundColor Green
+      Write-Host "✓ Execution policy check completed" -ForegroundColor Green
+"
 
-  # Set PowerShell execution policy
-  - task: PowerShell@2
-    displayName: 'Set PowerShell Execution Policy'
-    inputs:
-      targetType: 'inline'
-        script: |
-          Write-Host "PowerShell execution policy is already configured in Azure DevOps" -ForegroundColor Green
-          Write-Host "✓ Execution policy check completed" -ForegroundColor Green  # Install required PowerShell modules
+  # Install required PowerShell modules
   - task: PowerShell@2
     displayName: 'Install Required PowerShell Modules'
     inputs:
       targetType: 'inline'
-      script: |
+    script: |
         Write-Host "Installing required PowerShell modules..." -ForegroundColor Green
         
         $modules = @(
@@ -60,7 +61,7 @@ jobs:
     displayName: 'Validate PowerShell Syntax'
     inputs:
       targetType: 'inline'
-      script: |
+    script: |
         Write-Host "Validating PowerShell script syntax..." -ForegroundColor Green
         
         # Define all scripts to validate
@@ -127,7 +128,7 @@ jobs:
     displayName: 'Run PSScriptAnalyzer Code Quality Check'
     inputs:
       targetType: 'inline'
-      script: |
+    script: |
         Write-Host "Running PSScriptAnalyzer code quality analysis..." -ForegroundColor Green
         
         Import-Module PSScriptAnalyzer -Force
@@ -186,7 +187,7 @@ jobs:
     displayName: 'Create Test Configuration Files'
     inputs:
       targetType: 'inline'
-      script: |
+    script: |
         Write-Host "Creating test configuration files..." -ForegroundColor Green
         
         # Ensure Config directory exists
@@ -230,7 +231,7 @@ jobs:
     displayName: 'Run Unit Tests'
     inputs:
       targetType: 'inline'
-      script: |
+    script: |
         Write-Host "Checking for unit tests..." -ForegroundColor Green
         
         $testPath = "$(Build.SourcesDirectory)/Tests"
@@ -301,7 +302,7 @@ jobs:
     displayName: 'Create Build Information'
     inputs:
       targetType: 'inline'
-      script: |
+    script: |
         Write-Host "Creating build information file..." -ForegroundColor Green
         
         $buildInfo = @{
@@ -347,7 +348,7 @@ jobs:
     displayName: 'Build Summary'
     inputs:
       targetType: 'inline'
-      script: |
+    script: |
         Write-Host "=== BUILD COMPLETED SUCCESSFULLY ===" -ForegroundColor Green
         Write-Host "Build Number: $(Build.BuildNumber)" -ForegroundColor Cyan
         Write-Host "Source Branch: $(Build.SourceBranch)" -ForegroundColor Cyan
@@ -358,3 +359,4 @@ jobs:
         Write-Host "✓ Artifacts published successfully" -ForegroundColor Green
         Write-Host "Ready for deployment!" -ForegroundColor Green
     condition: succeeded()
+
