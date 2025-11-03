@@ -116,8 +116,7 @@ jobs:
             }
         }
 
-        Write-Host "
-Validation Summary:" -ForegroundColor Cyan
+        Write-Host "`nValidation Summary:" -ForegroundColor Cyan
         Write-Host "  Errors: $errorCount" -ForegroundColor $(if ($errorCount -gt 0) { "Red" } else { "Green" })
         Write-Host "  Warnings: $warningCount" -ForegroundColor $(if ($warningCount -gt 0) { "Yellow" } else { "Green" })
 
@@ -153,24 +152,21 @@ Validation Summary:" -ForegroundColor Cyan
             $warnings = $analysisResults | Where-Object {$_.Severity -eq 'Warning'}
             $info = $analysisResults | Where-Object {$_.Severity -eq 'Information'}
 
-            Write-Host "
-Code Quality Analysis Results:" -ForegroundColor Cyan
+            Write-Host "`nCode Quality Analysis Results:" -ForegroundColor Cyan
             Write-Host "  Errors: $($errors.Count)" -ForegroundColor $(if ($errors.Count -gt 0) { "Red" } else { "Green" })
             Write-Host "  Warnings: $($warnings.Count)" -ForegroundColor $(if ($warnings.Count -gt 0) { "Yellow" } else { "Green" })
             Write-Host "  Information: $($info.Count)" -ForegroundColor Cyan
 
             # Display detailed results
             if ($errors.Count -gt 0) {
-                Write-Host "
-Errors found:" -ForegroundColor Red
+                Write-Host "`nErrors found:" -ForegroundColor Red
                 $errors | ForEach-Object {
                     Write-Host "  $($_.ScriptName):$($_.Line) - $($_.RuleName): $($_.Message)" -ForegroundColor Red
                 }
             }
 
             if ($warnings.Count -gt 0) {
-                Write-Host "
-Warnings found:" -ForegroundColor Yellow
+                Write-Host "`nWarnings found:" -ForegroundColor Yellow
                 $warnings | ForEach-Object {
                     Write-Host "  $($_.ScriptName):$($_.Line) - $($_.RuleName): $($_.Message)" -ForegroundColor Yellow
                 }
@@ -260,8 +256,7 @@ Warnings found:" -ForegroundColor Yellow
             # Run tests
             $testResults = Invoke-Pester -Configuration $configuration
 
-            Write-Host "
-Test Results Summary:" -ForegroundColor Cyan
+            Write-Host "`nTest Results Summary:" -ForegroundColor Cyan
             Write-Host "  Total: $($testResults.TotalCount)" -ForegroundColor Cyan
             Write-Host "  Passed: $($testResults.PassedCount)" -ForegroundColor Green
             Write-Host "  Failed: $($testResults.FailedCount)" -ForegroundColor Red
