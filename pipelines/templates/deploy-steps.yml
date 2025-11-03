@@ -202,9 +202,9 @@ steps:
 
 # Execute PowerShell automation
 - task: AzurePowerShell@5
-  displayName: 'Execute PowerShell SQL Automation'
-  pwsh: true  # ← This forces PowerShell 7
+  displayName: 'Execute PowerShell SQL Automation' 
   inputs:
+    pwsh: true  # ← This forces PowerShell 7
     azureSubscription: '${{ parameters.serviceConnection }}'
     ScriptType: 'FilePath'
     ScriptPath: '$(Pipeline.Workspace)/PowerShellScripts/Scripts/Main.ps1'
