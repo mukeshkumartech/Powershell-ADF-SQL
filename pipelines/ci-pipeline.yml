@@ -139,8 +139,8 @@ jobs:
         
         # Define analysis rules to exclude (adjust as needed)
         $excludeRules = @(
-            'PSAvoidUsingPlainTextForPassword',  # We use secure methods
-            'PSAvoidUsingConvertToSecureStringWithPlainText'  # Acceptable for our use case
+            'PSAvoidUsingPlainTextForPassword',
+            'PSAvoidUsingConvertToSecureStringWithPlainText'
         )
         
         Write-Host "Analyzing PowerShell scripts for code quality issues..." -ForegroundColor Yellow
