@@ -84,12 +84,12 @@ jobs:
         - template: templates/deploy-steps.yml
           parameters:
             environment: ${{ parameters.environment }}
-            sqlServer: $(variables['${{ parameters.sqlServerVar }}'])               # FROM Variable Group
-            databaseName: $(variables['${{ parameters.databaseNameVar }}'])         # FROM Variable Group
-            keyVaultName: $(variables['${{ parameters.keyVaultNameVar }}'])         # FROM Variable Group
-            serviceConnection: ${{ parameters.serviceConnection }}                  # DIRECT value (Service Connections can't use variables)
-            servicePrincipalName: $(variables['${{ parameters.servicePrincipalNameVar }}'])  # FROM Variable Group
-            tableName: $(variables['${{ parameters.tableNameVar }}'])              # FROM Variable Group
+            sqlServer: $(DEV_SQL_SERVER)                    # Simplified - direct from Variable Group
+            databaseName: $(DEV_DATABASE_NAME)              # Simplified - direct from Variable Group
+            keyVaultName: $(DEV_KEY_VAULT_NAME)             # Simplified - direct from Variable Group
+            serviceConnection: ${{ parameters.serviceConnection }}
+            servicePrincipalName: $(SERVICE_PRINCIPAL_NAME) # Simplified - direct from Variable Group
+            tableName: $(TABLE_NAME)                        # Simplified - direct from Variable Group
             runMode: ${{ parameters.runMode }}
             runIntervalMinutes: ${{ parameters.runIntervalMinutes }}
             maxIterations: ${{ parameters.maxIterations }}
