@@ -139,7 +139,7 @@ class DatabaseConnection {
             Write-Host "Requesting access token from: $tokenEndpoint" -ForegroundColor Yellow
 
             # Use PowerShell 7+ enhanced Invoke-RestMethod features
-            $tokenResponse = Invoke-RestMethod -Uri $tokenEndpoint -Method POST -Body $requestBody -ContentType "application/x-www-form-urlencoded" -ErrorAction Stop
+            $tokenResponse = Invoke-RestMethod -Uri $tokenEndpoint -Method POST -Body $requestBody -ContentType "application/x-www-form-urlencoded"
             
             if ([string]::IsNullOrWhiteSpace($tokenResponse.access_token)) { throw "Failed to obtain access token from Azure AD" }
             $this.AccessToken = $tokenResponse.access_token
