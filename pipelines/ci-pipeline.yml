@@ -23,7 +23,6 @@ jobs:
       targetType: 'inline'
       script: |
         Write-Host "Setting PowerShell execution policy..." -ForegroundColor Green
-        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
         Write-Host "✓ Execution policy set to RemoteSigned" -ForegroundColor Green
 
   # Install required PowerShell modules
