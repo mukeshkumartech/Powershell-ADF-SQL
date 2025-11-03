@@ -38,17 +38,13 @@ class DatabaseConnection {
 
             Write-Host "Fetching secrets from Key Vault..." -ForegroundColor Yellow
             
-            # Use parallel processing for secret retrieval (PowerShell 7+ feature)
-            $secretTasks = @(
-                @{ Name = "ClientId"; SecretName = $clientIdSecretName },
-                @{ Name = "ClientSecret"; SecretName = $clientSecretSecretName },
-                @{ Name = "TenantId"; SecretName = $tenantIdSecretName }
-            )
+            Write-Host "Fetching secrets from Key Vault..." -ForegroundColor Yellow
             
-            $secrets = @{}
-            foreach ($task in $secretTasks) {
-                $retrievedValue = $this.GetKeyVaultSecret($keyVaultName, $task.SecretName)
-                $secrets[$task.Name] = $retrievedValue
+            # Retrieve secrets directly
+            $secrets = @{
+                ClientId = $this.GetKeyVaultSecret($keyVaultName, $clientIdSecretName)
+                ClientSecret = $this.GetKeyVaultSecret($keyVaultName, $clientSecretSecretName)
+                TenantId = $this.GetKeyVaultSecret($keyVaultName, $tenantIdSecretName)
             }
 
             Write-Host "Successfully retrieved all Service Principal credentials from Key Vault." -ForegroundColor Green
