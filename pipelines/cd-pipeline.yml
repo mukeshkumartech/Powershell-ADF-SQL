@@ -62,11 +62,21 @@ jobs:
               
               Write-Host "" -ForegroundColor White
               Write-Host "🔑 VARIABLE GROUP RESOLUTION:" -ForegroundColor Yellow
-              Write-Host "  ${{ parameters.sqlServerVar }}:              '$(variables['${{ parameters.sqlServerVar }}'])'" -ForegroundColor Green
-              Write-Host "  ${{ parameters.databaseNameVar }}:         '$(variables['${{ parameters.databaseNameVar }}'])'" -ForegroundColor Green
-              Write-Host "  ${{ parameters.keyVaultNameVar }}:         '$(variables['${{ parameters.keyVaultNameVar }}'])'" -ForegroundColor Green
-              Write-Host "  ${{ parameters.servicePrincipalNameVar }}: '$(variables['${{ parameters.servicePrincipalNameVar }}'])'" -ForegroundColor Green
-              Write-Host "  ${{ parameters.tableNameVar }}:            '$(variables['${{ parameters.tableNameVar }}'])'" -ForegroundColor Green
+              Write-Host "  Variable Group: '${{ parameters.variableGroup }}'" -ForegroundColor White
+              Write-Host "  ${{ parameters.sqlServerVar }}:              '$($env:DEV_SQL_SERVER)'" -ForegroundColor Green
+              Write-Host "  ${{ parameters.databaseNameVar }}:         '$($env:DEV_DATABASE_NAME)'" -ForegroundColor Green
+              Write-Host "  ${{ parameters.keyVaultNameVar }}:         '$($env:DEV_KEY_VAULT_NAME)'" -ForegroundColor Green
+              Write-Host "  ${{ parameters.servicePrincipalNameVar }}: '$($env:SERVICE_PRINCIPAL_NAME)'" -ForegroundColor Green
+              Write-Host "  ${{ parameters.tableNameVar }}:            '$($env:TABLE_NAME)'" -ForegroundColor Green
+              
+              Write-Host "" -ForegroundColor White
+              Write-Host "🚀 FINAL VALUES FOR DEPLOY-STEPS:" -ForegroundColor Yellow
+              Write-Host "  sqlServer:             '$($env:DEV_SQL_SERVER)'" -ForegroundColor Cyan
+              Write-Host "  databaseName:          '$($env:DEV_DATABASE_NAME)'" -ForegroundColor Cyan
+              Write-Host "  keyVaultName:          '$($env:DEV_KEY_VAULT_NAME)'" -ForegroundColor Cyan
+              Write-Host "  servicePrincipalName:  '$($env:SERVICE_PRINCIPAL_NAME)'" -ForegroundColor Cyan
+              Write-Host "  tableName:             '$($env:TABLE_NAME)'" -ForegroundColor Cyan
+              Write-Host "  serviceConnection:     '${{ parameters.serviceConnection }}'" -ForegroundColor Cyan
               
               Write-Host "=" * 80 -ForegroundColor Cyan
         
