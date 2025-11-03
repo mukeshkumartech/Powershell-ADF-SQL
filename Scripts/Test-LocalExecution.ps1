@@ -1,4 +1,5 @@
 #Requires -Version 7.0
+
 # Test-LocalExecution.ps1 - PowerShell 7+ version
 param(
     [string] $KeyVaultName = "kv-sql-demo-dev",
@@ -23,7 +24,7 @@ $envVars = @{
 
 # Set all environment variables
 $envVars.GetEnumerator() | ForEach-Object {
-    Set-Item -Path "env:$($_.Key)" -Value $_.Value
+    $env:($_.Key) = $_.Value  # PowerShell 7+ syntax
     Write-Host "  $($_.Key) = $($_.Value)" -ForegroundColor Cyan
 }
 
