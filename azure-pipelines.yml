@@ -28,9 +28,6 @@ pr:
 # Global variables
 variables:
   vmImageName: 'windows-latest'
-  servicePrincipalName: 'sp-sql-automation'
-  tableName: 'EmployeeData'
-
 resources:
   repositories:
   - repository: self
@@ -67,8 +64,8 @@ stages:
       databaseNameVar: 'DEV_DATABASE_NAME'
       keyVaultNameVar: 'DEV_KEY_VAULT_NAME'
       serviceConnectionVar: 'DEV_SERVICE_CONNECTION'
-      servicePrincipalName: $(servicePrincipalName)
-      tableName: $(tableName)
+      servicePrincipalName: 'SERVICE_PRINCIPAL_NAME'
+      tableName: 'TABLE_NAME'
       runMode: 'single'
       runIntervalMinutes: 1
       maxIterations: 1
