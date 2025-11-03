@@ -1,6 +1,4 @@
-# AppConfig.ps1 - Application configuration management (PowerShell 7+)
-using namespace System.Collections.Generic
-
+# AppConfig.ps1 - Application configuration management (PowerShell 5.1/7+ Compatible)
 . "$PSScriptRoot/Constants.ps1"
 
 class AppConfig {
@@ -23,69 +21,87 @@ class AppConfig {
         $this.KeyVaultName = $this.GetEnvValue("KEY_VAULT_NAME", $null)
         $this.ServicePrincipalName = $this.GetEnvValue("SERVICE_PRINCIPAL_NAME", "sp-sql-automation")
         $this.ContinuousMode = [bool]::Parse($this.GetEnvValue("CONTINUOUS_MODE", "false"))
-        $this.RunIntervalMinutes = [int]($this.GetEnvValue("RUN_INTERVAL_MINUTES", [AzureConstants]::DefaultRunIntervalMinutes.ToString()))
-        $this.MaxIterations = [int]($this.GetEnvValue("MAX_ITERATIONS", [AzureConstants]::DefaultMaxIterations.ToString()))
+        $this.RunIntervalMinutes = [int]($this.GetEnvValue("RUN_INTERVAL_MINUTES", "30"))
+        $this.MaxIterations = [int]($this.GetEnvValue("MAX_ITERATIONS", "10"))
         
         $this.ValidateConfiguration()
     }
     
-    # Constructor that accepts parameters (PowerShell 7+ null-coalescing operator)
+    # Constructor that accepts parameters (compatible version)
     AppConfig([hashtable] $configParams) {
-        $this.Environment = $configParams.Environment ?? "Development"
+        if ($configParams.Environment) {
+            $this.Environment = $configParams.Environment
+        } else {
+            $this.Environment = "Development"
+        }
+        
         $this.SqlServer = $configParams.SqlServer
         $this.DatabaseName = $configParams.DatabaseName
-        $this.TableName = $configParams.TableName ?? "TestTable"
+        
+        if ($configParams.TableName) {
+            $this.TableName = $configParams.TableName
+        } else {
+            $this.TableName = "TestTable"
+        }
+        
         $this.KeyVaultName = $configParams.KeyVaultName
-        $this.ServicePrincipalName = $configParams.ServicePrincipalName ?? "sp-sql-automation"
-        $this.ContinuousMode = $configParams.ContinuousMode ?? $false
-        $this.RunIntervalMinutes = $configParams.RunIntervalMinutes ?? [AzureConstants]::DefaultRunIntervalMinutes
-        $this.MaxIterations = $configParams.MaxIterations ?? [AzureConstants]::DefaultMaxIterations
+        
+        if ($configParams.ServicePrincipalName) {
+            $this.ServicePrincipalName = $configParams.ServicePrincipalName
+        } else {
+            $this.ServicePrincipalName = "sp-sql-automation"
+        }
+        
+        if ($configParams.ContinuousMode -ne $null) {
+            $this.ContinuousMode = $configParams.ContinuousMode
+        } else {
+            $this.ContinuousMode = $false
+        }
+        
+        if ($configParams.RunIntervalMinutes) {
+            $this.RunIntervalMinutes = $configParams.RunIntervalMinutes
+        } else {
+            $this.RunIntervalMinutes = 30
+        }
+        
+        if ($configParams.MaxIterations) {
+            $this.MaxIterations = $configParams.MaxIterations
+        } else {
+            $this.MaxIterations = 10
+        }
         
         $this.ValidateConfiguration()
-    }
-    
-    # Static factory method for JSON configuration
-    static [AppConfig] FromJsonFile([string] $jsonFilePath) {
-        if (-not (Test-Path $jsonFilePath)) {
-            throw "Configuration file not found: $jsonFilePath"
-        }
-        
-        $jsonContent = Get-Content $jsonFilePath -Raw | ConvertFrom-Json
-        $configHash = @{}
-        
-        # Convert PSObject to hashtable
-        $jsonContent.PSObject.Properties | ForEach-Object { 
-            $configHash[$_.Name] = $_.Value 
-        }
-        
-        return [AppConfig]::new($configHash)
     }
     
     hidden [string] GetEnvValue([string] $envVarName, [string] $defaultValue) {
-        return $env:$envVarName ?? $defaultValue
+        $value = [System.Environment]::GetEnvironmentVariable($envVarName)
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            return $defaultValue
+        }
+        return $value
     }
     
     hidden [void] ValidateConfiguration() {
-        $errors = [List[string]]::new()
+        $errors = @()
         
         if ([string]::IsNullOrWhiteSpace($this.SqlServer)) {
-            $errors.Add("SQL_SERVER environment variable is required")
+            $errors += "SQL_SERVER environment variable is required"
         }
         
         if ([string]::IsNullOrWhiteSpace($this.DatabaseName)) {
-            $errors.Add("DATABASE_NAME environment variable is required")
+            $errors += "DATABASE_NAME environment variable is required"
         }
         
         if ([string]::IsNullOrWhiteSpace($this.KeyVaultName)) {
-            $errors.Add("KEY_VAULT_NAME environment variable is required")
+            $errors += "KEY_VAULT_NAME environment variable is required"
         }
         
         if ($this.RunIntervalMinutes -le 0) {
-            $errors.Add("RUN_INTERVAL_MINUTES must be greater than 0")
+            $errors += "RUN_INTERVAL_MINUTES must be greater than 0"
         }
         
         if ($this.MaxIterations -le 0) {
-            $errors.Add("MAX_ITERATIONS must be greater than 0")
+            $errors += "MAX_ITERATIONS must be greater than 0"
         }
         
         if ($errors.Count -gt 0) {
@@ -105,22 +121,5 @@ class AppConfig {
         Write-Host "Run Interval: $($this.RunIntervalMinutes) minutes" -ForegroundColor Cyan
         Write-Host "Max Iterations: $($this.MaxIterations)" -ForegroundColor Cyan
         Write-Host "================================`n" -ForegroundColor Green
-    }
-    
-    # Convert to JSON for serialization
-    [string] ToJson() {
-        $configObject = @{
-            Environment = $this.Environment
-            SqlServer = $this.SqlServer
-            DatabaseName = $this.DatabaseName
-            TableName = $this.TableName
-            KeyVaultName = $this.KeyVaultName
-            ServicePrincipalName = $this.ServicePrincipalName
-            ContinuousMode = $this.ContinuousMode
-            RunIntervalMinutes = $this.RunIntervalMinutes
-            MaxIterations = $this.MaxIterations
-        }
-        
-        return $configObject | ConvertTo-Json -Depth 3
     }
 }
