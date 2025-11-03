@@ -56,6 +56,8 @@ stages:
   displayName: 'Deploy to Development'
   dependsOn: CI
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+  variables:
+  - group: SQL-Database-Dev
   jobs:
   - template: pipelines/cd-pipeline.yml
     parameters:
@@ -79,6 +81,8 @@ stages:
   displayName: 'Deploy to Production'
   dependsOn: CI
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  variables:
+  - group: SQL-Database-Prod
   jobs:
   - template: pipelines/cd-pipeline.yml
     parameters:
@@ -93,4 +97,4 @@ stages:
       tableName: $(tableName)
       runMode: 'continuous'
       runIntervalMinutes: 30
-      maxIterations: 48  # 24 hours
+      maxIterations: 48
