@@ -4,7 +4,7 @@
         "activities": [
             {
                 "name": "RunPowerShellWithSQL",
-                "type": "Script",
+                "type": "WebActivity",
                 "dependsOn": [],
                 "policy": {
                     "timeout": "0.12:00:00",
@@ -14,14 +14,21 @@
                     "secureInput": false
                 },
                 "userProperties": [],
-                "linkedServiceName": null,
                 "typeProperties": {
-                    "scripts": [
-                        {
-                            "type": "PowerShell",
-                            "text": "try {\n    Write-Host 'Starting PowerShell script execution...'\n    \n    # Simple test first\n    Write-Host 'Current Time:' (Get-Date)\n    Write-Host 'Machine Name:' $env:COMPUTERNAME\n    Write-Host 'PowerShell Version:' $PSVersionTable.PSVersion\n    \n    Write-Host 'PowerShell script execution completed successfully!'\n    \n} catch {\n    Write-Error ('Script execution failed: {0}' -f $_.Exception.Message)\n    Write-Host ('Error details: {0}' -f $_.Exception.ToString())\n    throw\n}"
-                        }
-                    ]
+                    "url": "https://management.azure.com/subscriptions/83115f91-81ea-40d8-be70-4f784410ab6f/resourceGroups/rg-sqldemo-001/providers/Microsoft.DataFactory/factories/adf-sql-demo-1234/debug/pipelineruns?api-version=2018-06-01",
+                    "method": "POST",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "body": {
+                        "message": "PowerShell execution simulation",
+                        "timestamp": "@utcnow()",
+                        "status": "success"
+                    },
+                    "authentication": {
+                        "type": "MSI",
+                        "resource": "https://management.azure.com/"
+                    }
                 }
             }
         ],
