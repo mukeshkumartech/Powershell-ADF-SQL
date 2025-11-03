@@ -1,0 +1,325 @@
+# Deployment Steps Template
+parameters:
+- name: environment
+  type: string
+- name: sqlServer
+  type: string
+- name: databaseName
+  type: string
+- name: keyVaultName
+  type: string
+- name: serviceConnection
+  type: string
+- name: servicePrincipalName
+  type: string
+- name: tableName
+  type: string
+- name: runMode
+  type: string
+  default: 'single'
+- name: runIntervalMinutes
+  type: number
+  default: 30
+- name: maxIterations
+  type: number
+  default: 1
+
+steps:
+# Download artifacts
+- download: current
+  artifact: PowerShellScripts
+  displayName: 'Download Build Artifacts'
+
+# Display deployment information
+- task: PowerShell@2
+  displayName: 'Display Deployment Information'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Write-Host "=== DEPLOYMENT INFORMATION ===" -ForegroundColor Green
+      Write-Host "Environment: ${{ parameters.environment }}" -ForegroundColor Cyan
+      Write-Host "SQL Server: ${{ parameters.sqlServer }}" -ForegroundColor Cyan
+      Write-Host "Database: ${{ parameters.databaseName }}" -ForegroundColor Cyan
+      Write-Host "Key Vault: ${{ parameters.keyVaultName }}" -ForegroundColor Cyan
+      Write-Host "Service Principal: ${{ parameters.servicePrincipalName }}" -ForegroundColor Cyan
+      Write-Host "Table: ${{ parameters.tableName }}" -ForegroundColor Cyan
+      Write-Host "Run Mode: ${{ parameters.runMode }}" -ForegroundColor Cyan
+      Write-Host "Run Interval: ${{ parameters.runIntervalMinutes }} minutes" -ForegroundColor Cyan
+      Write-Host "Max Iterations: ${{ parameters.maxIterations }}" -ForegroundColor Cyan
+      Write-Host "Service Connection: ${{ parameters.serviceConnection }}" -ForegroundColor Cyan
+      Write-Host "===============================" -ForegroundColor Green
+
+# Install Azure PowerShell modules
+- task: PowerShell@2
+  displayName: 'Install Azure PowerShell Modules'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Write-Host "Installing Azure PowerShell modules for ${{ parameters.environment }}..." -ForegroundColor Green
+      
+      Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+      
+      $modules = @(
+          @{ Name = 'Az.Accounts'; MinVersion = '2.12.0' },
+          @{ Name = 'Az.KeyVault'; MinVersion = '4.9.0' },
+          @{ Name = 'SqlServer'; MinVersion = '22.0.0' }
+      )
+      
+      foreach ($module in $modules) {
+          $installed = Get-Module -ListAvailable -Name $module.Name | 
+                      Where-Object { $_.Version -ge [Version]$module.MinVersion } | 
+                      Select-Object -First 1
+          
+          if (-not $installed) {
+              Write-Host "Installing $($module.Name) (min version: $($module.MinVersion))..." -ForegroundColor Yellow
+              Install-Module -Name $module.Name -MinimumVersion $module.MinVersion -Force -AllowClobber -Scope CurrentUser -Repository PSGallery
+              Write-Host "✓ $($module.Name) installed" -ForegroundColor Green
+          } else {
+              Write-Host "✓ $($module.Name) already available (version: $($installed.Version))" -ForegroundColor Green
+          }
+      }
+
+# Authenticate to Azure
+- task: AzurePowerShell@5
+  displayName: 'Authenticate to Azure'
+  inputs:
+    azureSubscription: '${{ parameters.serviceConnection }}'
+    ScriptType: 'InlineScript'
+    Inline: |
+      Write-Host "Authenticating to Azure for ${{ parameters.environment }}..." -ForegroundColor Green
+      $context = Get-AzContext
+      if ($context) {
+          Write-Host "✓ Authenticated as: $($context.Account.Id)" -ForegroundColor Green
+          Write-Host "✓ Subscription: $($context.Subscription.Name) ($($context.Subscription.Id))" -ForegroundColor Green
+          Write-Host "✓ Tenant: $($context.Tenant.Id)" -ForegroundColor Green
+      } else {
+          throw "Failed to get Azure context"
+      }
+    azurePowerShellVersion: 'LatestVersion'
+
+# Validate Key Vault access
+- task: AzurePowerShell@5
+  displayName: 'Validate Key Vault Access'
+  inputs:
+    azureSubscription: '${{ parameters.serviceConnection }}'
+    ScriptType: 'InlineScript'
+    Inline: |
+      Write-Host "Validating Key Vault access..." -ForegroundColor Green
+      
+      try {
+          # Test Key Vault access
+          $vault = Get-AzKeyVault -VaultName "${{ parameters.keyVaultName }}" -ErrorAction Stop
+          Write-Host "✓ Key Vault found: $($vault.VaultName)" -ForegroundColor Green
+          Write-Host "✓ Location: $($vault.Location)" -ForegroundColor Green
+          Write-Host "✓ Resource Group: $($vault.ResourceGroupName)" -ForegroundColor Green
+          
+          # List and verify required secrets
+          $secrets = Get-AzKeyVaultSecret -VaultName "${{ parameters.keyVaultName }}" -ErrorAction Stop
+          Write-Host "✓ Total secrets in vault: $($secrets.Count)" -ForegroundColor Green
+          
+          $requiredSecrets = @(
+              "${{ parameters.servicePrincipalName }}-client-id",
+              "${{ parameters.servicePrincipalName }}-client-secret", 
+              "${{ parameters.servicePrincipalName }}-tenant-id"
+          )
+          
+          $missingSecrets = @()
+          foreach ($secretName in $requiredSecrets) {
+              $secret = $secrets | Where-Object { $_.Name -eq $secretName }
+              if ($secret) {
+                  Write-Host "✓ Required secret found: $secretName" -ForegroundColor Green
+              } else {
+                  Write-Host "✗ Required secret missing: $secretName" -ForegroundColor Red
+                  $missingSecrets += $secretName
+              }
+          }
+          
+          if ($missingSecrets.Count -gt 0) {
+              throw "Missing required secrets in Key Vault: $($missingSecrets -join ', ')"
+          }
+          
+          Write-Host "✓ All required secrets are available in Key Vault" -ForegroundColor Green
+      }
+      catch {
+          Write-Error "Key Vault validation failed: $($_.Exception.Message)"
+          throw
+      }
+    azurePowerShellVersion: 'LatestVersion'
+
+# Pre-execution validation
+- task: PowerShell@2
+  displayName: 'Pre-Execution Validation'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Write-Host "Running pre-execution validation..." -ForegroundColor Green
+      
+      # Validate all required parameters
+      $parameters = @{
+          'Environment' = '${{ parameters.environment }}'
+          'SQL Server' = '${{ parameters.sqlServer }}'
+          'Database Name' = '${{ parameters.databaseName }}'
+          'Key Vault Name' = '${{ parameters.keyVaultName }}'
+          'Service Principal Name' = '${{ parameters.servicePrincipalName }}'
+          'Table Name' = '${{ parameters.tableName }}'
+          'Service Connection' = '${{ parameters.serviceConnection }}'
+          'Run Mode' = '${{ parameters.runMode }}'
+          'Run Interval (minutes)' = '${{ parameters.runIntervalMinutes }}'
+          'Max Iterations' = '${{ parameters.maxIterations }}'
+      }
+      
+      $validationErrors = @()
+      foreach ($param in $parameters.GetEnumerator()) {
+          if ([string]::IsNullOrWhiteSpace($param.Value) -or $param.Value.StartsWith('$(') -and $param.Value.EndsWith(')')) {
+              $validationErrors += "Parameter '$($param.Key)' is missing or not resolved: '$($param.Value)'"
+              Write-Host "✗ $($param.Key): '$($param.Value)'" -ForegroundColor Red
+          } else {
+              Write-Host "✓ $($param.Key): '$($param.Value)'" -ForegroundColor Green
+          }
+      }
+      
+      if ($validationErrors.Count -gt 0) {
+          Write-Host "`nValidation Errors:" -ForegroundColor Red
+          $validationErrors | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+          throw "Pre-execution validation failed with $($validationErrors.Count) error(s)"
+      }
+      
+      # Validate script files exist
+      $mainScriptPath = "$(Pipeline.Workspace)/PowerShellScripts/Scripts/Main.ps1"
+      if (-not (Test-Path $mainScriptPath)) {
+          throw "Main script not found: $mainScriptPath"
+      }
+      Write-Host "✓ Main script found: $mainScriptPath" -ForegroundColor Green
+      
+      # Calculate total runtime for continuous mode
+      if ('${{ parameters.runMode }}' -eq 'continuous') {
+          $totalMinutes = [int]'${{ parameters.runIntervalMinutes }}' * [int]'${{ parameters.maxIterations }}'
+          $totalHours = [math]::Round($totalMinutes / 60, 1)
+          Write-Host "✓ Continuous mode: Will run for approximately $totalHours hours ($totalMinutes minutes)" -ForegroundColor Cyan
+      }
+      
+      Write-Host "✓ Pre-execution validation completed successfully" -ForegroundColor Green
+
+# Execute PowerShell automation
+- task: AzurePowerShell@5
+  displayName: 'Execute PowerShell SQL Automation'
+  inputs:
+    azureSubscription: '${{ parameters.serviceConnection }}'
+    ScriptType: 'FilePath'
+    ScriptPath: '$(Pipeline.Workspace)/PowerShellScripts/Scripts/Main.ps1'
+    azurePowerShellVersion: 'LatestVersion'
+  env:
+    ENVIRONMENT: '${{ parameters.environment }}'
+    SQL_SERVER: '${{ parameters.sqlServer }}'
+    DATABASE_NAME: '${{ parameters.databaseName }}'
+    TABLE_NAME: '${{ parameters.tableName }}'
+    KEY_VAULT_NAME: '${{ parameters.keyVaultName }}'
+    SERVICE_PRINCIPAL_NAME: '${{ parameters.servicePrincipalName }}'
+    CONTINUOUS_MODE: '${{ eq(parameters.runMode, ''continuous'') }}'
+    RUN_INTERVAL_MINUTES: '${{ parameters.runIntervalMinutes }}'
+    MAX_ITERATIONS: '${{ parameters.maxIterations }}'
+  timeoutInMinutes: ${{ add(mul(parameters.maxIterations, parameters.runIntervalMinutes), 15) }}
+
+# Collect execution logs and create summary
+- task: PowerShell@2
+  displayName: 'Collect Execution Logs and Create Summary'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Write-Host "Collecting execution logs..." -ForegroundColor Green
+      
+      # Create logs directory
+      $logsDir = "$(Agent.TempDirectory)/ExecutionLogs"
+      if (-not (Test-Path $logsDir)) {
+          New-Item -ItemType Directory -Path $logsDir -Force
+      }
+      
+      # Create execution summary
+      $summary = @{
+          Environment = '${{ parameters.environment }}'
+          ExecutionDate = Get-Date -Format "yyyy-MM-dd"
+          ExecutionTime = Get-Date -Format "HH:mm:ss"
+          Parameters = @{
+              SqlServer = '${{ parameters.sqlServer }}'
+              DatabaseName = '${{ parameters.databaseName }}'
+              KeyVaultName = '${{ parameters.keyVaultName }}'
+              ServicePrincipalName = '${{ parameters.servicePrincipalName }}'
+              TableName = '${{ parameters.tableName }}'
+              RunMode = '${{ parameters.runMode }}'
+              RunIntervalMinutes = [int]'${{ parameters.runIntervalMinutes }}'
+              MaxIterations = [int]'${{ parameters.maxIterations }}'
+          }
+          BuildInfo = @{
+              BuildId = "$(Build.BuildId)"
+              BuildNumber = "$(Build.BuildNumber)"
+              SourceBranch = "$(Build.SourceBranch)"
+              SourceVersion = "$(Build.SourceVersion)"
+          }
+          Agent = @{
+              Name = "$(Agent.Name)"
+              OS = "$(Agent.OS)"
+          }
+          Status = "Completed"
+          TotalRuntimeMinutes = if ('${{ parameters.runMode }}' -eq 'continuous') { 
+              [int]'${{ parameters.runIntervalMinutes }}' * [int]'${{ parameters.maxIterations }}' 
+          } else { 
+              "Single execution" 
+          }
+      }
+      
+      $summaryPath = "$logsDir/execution-summary.json"
+      $summary | ConvertTo-Json -Depth 4 | Set-Content -Path $summaryPath -Encoding UTF8
+      
+      Write-Host "✓ Execution summary created: $summaryPath" -ForegroundColor Green
+      
+      # Display summary
+      Write-Host "`n=== EXECUTION SUMMARY ===" -ForegroundColor Green
+      Write-Host "Environment: $($summary.Environment)" -ForegroundColor Cyan
+      Write-Host "Execution Time: $($summary.ExecutionDate) $($summary.ExecutionTime)" -ForegroundColor Cyan
+      Write-Host "Build: $($summary.BuildInfo.BuildNumber)" -ForegroundColor Cyan
+      Write-Host "Status: $($summary.Status)" -ForegroundColor Cyan
+      if ($summary.TotalRuntimeMinutes -ne "Single execution") {
+          Write-Host "Total Runtime: $($summary.TotalRuntimeMinutes) minutes" -ForegroundColor Cyan
+      }
+      Write-Host "========================" -ForegroundColor Green
+  condition: always()
+
+# Publish execution logs
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Execution Logs'
+  inputs:
+    PathtoPublish: '$(Agent.TempDirectory)/ExecutionLogs'
+    ArtifactName: 'ExecutionLogs-${{ parameters.environment }}-$(Build.BuildNumber)'
+    publishLocation: 'Container'
+  condition: always()
+
+# Deployment completion notification
+- task: PowerShell@2
+  displayName: 'Deployment Completion Notification'
+  inputs:
+    targetType: 'inline'
+    script: |
+      $status = if ($env:AGENT_JOBSTATUS -eq 'Succeeded') { "SUCCESS" } else { "FAILED" }
+      $color = if ($status -eq "SUCCESS") { "Green" } else { "Red" }
+      
+      Write-Host "=== DEPLOYMENT $status ===" -ForegroundColor $color
+      Write-Host "Environment: ${{ parameters.environment }}" -ForegroundColor Cyan
+      Write-Host "Build: $(Build.BuildNumber)" -ForegroundColor Cyan
+      Write-Host "Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Cyan
+      Write-Host "Agent: $(Agent.Name)" -ForegroundColor Cyan
+      
+      if ($status -eq "SUCCESS") {
+          Write-Host "✓ PowerShell SQL automation executed successfully!" -ForegroundColor Green
+          Write-Host "✓ Check execution logs for detailed results" -ForegroundColor Green
+      } else {
+          Write-Host "✗ Deployment failed - check logs for details" -ForegroundColor Red
+      }
+      
+      # Here you can add notification logic:
+      # - Send Teams message
+      # - Send email
+      # - Update monitoring dashboard
+      # - Call webhook
+      
+      Write-Host "Deployment completed for ${{ parameters.environment }}" -ForegroundColor $color
+  condition: always()
