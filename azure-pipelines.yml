@@ -28,6 +28,7 @@ pr:
 # Global variables
 variables:
   vmImageName: 'windows-latest'
+
 resources:
   repositories:
   - repository: self
@@ -63,11 +64,9 @@ stages:
       sqlServerVar: 'DEV_SQL_SERVER'
       databaseNameVar: 'DEV_DATABASE_NAME'
       keyVaultNameVar: 'DEV_KEY_VAULT_NAME'
-      serviceConnectionVar: 'adf-sql-demo-app-registration'
-      servicePrincipalName: 'SERVICE_PRINCIPAL_NAME'
-      tableName: 'TABLE_NAME'
+      serviceConnectionVar: 'DEV_SERVICE_CONNECTION'      # FIXED: Now points to variable name
+      servicePrincipalName: 'SERVICE_PRINCIPAL_NAME'     # FIXED: Now points to variable name
+      tableName: 'TABLE_NAME'                            # FIXED: Now points to variable name
       runMode: 'single'
       runIntervalMinutes: 1
       maxIterations: 1
-
-
