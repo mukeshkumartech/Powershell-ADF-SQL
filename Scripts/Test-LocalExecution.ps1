@@ -1,13 +1,10 @@
-
 #Requires -Version 7.0
-# Test-LocalExecution.ps1 - PowerShell 7+ local testing script
+# Test-LocalExecution.ps1 - PowerShell 7+ version
 param(
     [string] $KeyVaultName = "kv-sql-demo-dev",
     [string] $SqlServer = "sqldemo-12345.database.windows.net",
     [string] $DatabaseName = "TestDatabase"
-
-
-using namespace System.Collections.Generic
+)
 
 Write-Host "Setting up environment variables for local testing..." -ForegroundColor Green
 
@@ -39,7 +36,9 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     exit 1
 }
 
-# Run the main script with enhanced error handling
+Write-Host "Using PowerShell $($PSVersionTable.PSVersion)" -ForegroundColor Green
+
+# Run the main script
 try {
     $startTime = Get-Date
     & "$PSScriptRoot/Main.ps1"
@@ -53,8 +52,4 @@ catch {
     Write-Host "Test execution failed: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "Stack trace: $($_.ScriptStackTrace)" -ForegroundColor Red
     throw
-}
-finally {
-    # Clean up environment variables if needed
-    Write-Host "Test completed." -ForegroundColor Green
 }
