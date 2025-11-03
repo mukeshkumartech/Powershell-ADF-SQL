@@ -216,11 +216,9 @@ steps:
     KEY_VAULT_NAME: '${{ parameters.keyVaultName }}'
     SERVICE_PRINCIPAL_NAME: '${{ parameters.servicePrincipalName }}'
     CONTINUOUS_MODE: '${{ eq(parameters.runMode, ''continuous'') }}'
-    RUN_INTERVAL_MINUTES: '${{ parameters.runIntervalMinutes }}'
-    MAX_ITERATIONS: '${{ parameters.maxIterations }}'
-  timeoutInMinutes: ${{ add(mul(parameters.maxIterations, parameters.runIntervalMinutes), 15) }}
-
-# Collect execution logs and create summary
+      RUN_INTERVAL_MINUTES: '${{ parameters.runIntervalMinutes }}'            
+      MAX_ITERATIONS: '${{ parameters.maxIterations }}'                     
+    timeoutInMinutes: 240  # 4 hours timeout for SQL operations# Collect execution logs and create summary
 - task: PowerShell@2
   displayName: 'Collect Execution Logs and Create Summary'
   inputs:
