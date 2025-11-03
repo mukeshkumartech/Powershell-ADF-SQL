@@ -1,8 +1,8 @@
 # Test-LocalExecution.ps1 - For testing locally before deploying to Azure DevOps
 param(
-    [string] $KeyVaultName = "kv-sql-automation-001",
-    [string] $SqlServer = "your-server.database.windows.net",
-    [string] $DatabaseName = "YourDatabase"
+    [string] $KeyVaultName = "kv-sql-demo-dev",
+    [string] $SqlServer = "sqldemo-12345.database.windows.net",
+    [string] $DatabaseName = "TestDatabase"
 )
 
 Write-Host "Setting up environment variables for local testing..." -ForegroundColor Green
