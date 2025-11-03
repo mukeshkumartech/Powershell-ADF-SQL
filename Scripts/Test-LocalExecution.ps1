@@ -11,7 +11,7 @@ Write-Host "Setting up environment variables for local testing..." -ForegroundCo
 $env:ENVIRONMENT = "Development"
 $env:SQL_SERVER = $SqlServer
 $env:DATABASE_NAME = $DatabaseName
-$env:TABLE_NAME = "TestTable"
+$env:TABLE_NAME = "EmployeeData"
 $env:KEY_VAULT_NAME = $KeyVaultName
 $env:SERVICE_PRINCIPAL_NAME = "sp-sql-automation"
 $env:CONTINUOUS_MODE = "false"
