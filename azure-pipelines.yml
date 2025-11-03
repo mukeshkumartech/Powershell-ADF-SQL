@@ -54,7 +54,7 @@ stages:
 - stage: CD_Development
   displayName: 'Deploy to Development'
   dependsOn: CI
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   variables:
   - group: SQL-Database-Dev
   jobs:
@@ -73,27 +73,4 @@ stages:
       runIntervalMinutes: 1
       maxIterations: 1
 
-#################################################################
-# STAGE 3: CONTINUOUS DEPLOYMENT - PRODUCTION
-#################################################################
-- stage: CD_Production
-  displayName: 'Deploy to Production'
-  dependsOn: CI
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
-  variables:
-  - group: SQL-Database-Prod
-  jobs:
-  - template: pipelines/cd-pipeline.yml
-    parameters:
-      environment: 'Production'
-      vmImageName: $(vmImageName)
-      variableGroup: 'SQL-Database-Prod'
-      sqlServerVar: 'PROD_SQL_SERVER'
-      databaseNameVar: 'PROD_DATABASE_NAME'
-      keyVaultNameVar: 'PROD_KEY_VAULT_NAME'
-      serviceConnectionVar: 'PROD_SERVICE_CONNECTION'
-      servicePrincipalName: $(servicePrincipalName)
-      tableName: $(tableName)
-      runMode: 'continuous'
-      runIntervalMinutes: 30
-      maxIterations: 48
+
