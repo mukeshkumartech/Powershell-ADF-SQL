@@ -25,32 +25,57 @@ class DatabaseConnection {
     }
 
     hidden [hashtable] GetServicePrincipalFromKeyVault([string] $keyVaultName, [string] $servicePrincipalName) {
-        try {
-            Write-Host "Retrieving Service Principal credentials from Key Vault: $keyVaultName" -ForegroundColor Yellow
-            
-            # Ensure Az.KeyVault module is available
-            $this.EnsureAzKeyVaultModule()
+    try {
+        Write-Host "DEBUG: Line 1 - Starting GetServicePrincipalFromKeyVault method" -ForegroundColor Magenta
+        Write-Host "Retrieving Service Principal credentials from Key Vault: $keyVaultName" -ForegroundColor Yellow
+        
+        Write-Host "DEBUG: Line 2 - About to call EnsureAzKeyVaultModule" -ForegroundColor Magenta
+        # Ensure Az.KeyVault module is available
+        $this.EnsureAzKeyVaultModule()
+        Write-Host "DEBUG: Line 3 - EnsureAzKeyVaultModule completed" -ForegroundColor Magenta
 
-            # Build secret names using constants and null-conditional operators
-            $clientIdSecretName = [AzureConstants]::GetClientIdSecretName($servicePrincipalName)
-            $clientSecretSecretName = [AzureConstants]::GetClientSecretSecretName($servicePrincipalName)
-            $tenantIdSecretName = [AzureConstants]::GetTenantIdSecretName($servicePrincipalName)
+        Write-Host "DEBUG: Line 4 - Building secret names" -ForegroundColor Magenta
+        # Build secret names using constants
+        $clientIdSecretName = [AzureConstants]::GetClientIdSecretName($servicePrincipalName)
+        Write-Host "DEBUG: Line 5 - clientIdSecretName = $clientIdSecretName" -ForegroundColor Magenta
+        
+        $clientSecretSecretName = [AzureConstants]::GetClientSecretSecretName($servicePrincipalName)
+        Write-Host "DEBUG: Line 6 - clientSecretSecretName = $clientSecretSecretName" -ForegroundColor Magenta
+        
+        $tenantIdSecretName = [AzureConstants]::GetTenantIdSecretName($servicePrincipalName)
+        Write-Host "DEBUG: Line 7 - tenantIdSecretName = $tenantIdSecretName" -ForegroundColor Magenta
 
-            Write-Host "Fetching secrets from Key Vault..." -ForegroundColor Yellow
-            
-            # Retrieve secrets directly
-            $secrets = @{
-                ClientId = $this.GetKeyVaultSecret($keyVaultName, $clientIdSecretName)
-                ClientSecret = $this.GetKeyVaultSecret($keyVaultName, $clientSecretSecretName)
-                TenantId = $this.GetKeyVaultSecret($keyVaultName, $tenantIdSecretName)
-            }
+        Write-Host "Fetching secrets from Key Vault..." -ForegroundColor Yellow
+        
+        Write-Host "DEBUG: Line 8 - About to retrieve ClientId secret" -ForegroundColor Magenta
+        $clientIdValue = $this.GetKeyVaultSecret($keyVaultName, $clientIdSecretName)
+        Write-Host "DEBUG: Line 9 - ClientId retrieved successfully" -ForegroundColor Magenta
+        
+        Write-Host "DEBUG: Line 10 - About to retrieve ClientSecret secret" -ForegroundColor Magenta
+        $clientSecretValue = $this.GetKeyVaultSecret($keyVaultName, $clientSecretSecretName)
+        Write-Host "DEBUG: Line 11 - ClientSecret retrieved successfully" -ForegroundColor Magenta
+        
+        Write-Host "DEBUG: Line 12 - About to retrieve TenantId secret" -ForegroundColor Magenta
+        $tenantIdValue = $this.GetKeyVaultSecret($keyVaultName, $tenantIdSecretName)
+        Write-Host "DEBUG: Line 13 - TenantId retrieved successfully" -ForegroundColor Magenta
+        
+        Write-Host "DEBUG: Line 14 - Building secrets hashtable" -ForegroundColor Magenta
+        $secrets = @{
+            ClientId = $clientIdValue
+            ClientSecret = $clientSecretValue
+            TenantId = $tenantIdValue
+        }
+        Write-Host "DEBUG: Line 15 - Secrets hashtable created successfully" -ForegroundColor Magenta
 
-            Write-Host "Successfully retrieved all Service Principal credentials from Key Vault." -ForegroundColor Green
+        Write-Host "Successfully retrieved all Service Principal credentials from Key Vault." -ForegroundColor Green
+        Write-Host "DEBUG: Line 16 - About to return secrets" -ForegroundColor Magenta
 
-            return $secrets
+        return $secrets
         }
         catch {
+            Write-Host "DEBUG: CATCH BLOCK - Error occurred" -ForegroundColor Red
             $exceptionMessage = $_.Exception.Message
+            Write-Host "DEBUG: Exception message extracted: $exceptionMessage" -ForegroundColor Red
             Write-Error "Failed to retrieve Service Principal credentials from Key Vault: $exceptionMessage"
             throw "Key Vault access failed: $exceptionMessage"
         }
