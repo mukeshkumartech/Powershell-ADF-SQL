@@ -15,15 +15,14 @@
                 },
                 "userProperties": [],
                 "typeProperties": {
-                    "url": "https://management.azure.com/subscriptions/83115f91-81ea-40d8-be70-4f784410ab6f/resourceGroups/rg-sqldemo-001/providers/Microsoft.DataFactory/factories/adf-sql-demo-1234/debug/pipelineruns?api-version=2018-06-01",
+                    "url": "https://management.azure.com/subscriptions/83115f91-81ea-40d8-be70-4f784410ab6f/resourceGroups/rg-sqldemo-001/providers/Microsoft.Automation/automationAccounts/automation-sql-demo/runbooks/PowerShellSQL/start?api-version=2020-01-13-preview",
                     "method": "POST",
                     "headers": {
                         "Content-Type": "application/json"
                     },
                     "body": {
-                        "message": "PowerShell execution simulation",
-                        "timestamp": "@utcnow()",
-                        "status": "success"
+                        "runOn": "",
+                        "parameters": {}
                     },
                     "authentication": {
                         "type": "MSI",
