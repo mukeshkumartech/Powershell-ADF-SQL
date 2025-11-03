@@ -24,7 +24,7 @@ $envVars = @{
 
 # Set all environment variables
 $envVars.GetEnumerator() | ForEach-Object {
-    $env:($_.Key) = $_.Value  # PowerShell 7+ syntax
+    Set-Item -Path "env:$($_.Key)" -Value $_.Value
     Write-Host "  $($_.Key) = $($_.Value)" -ForegroundColor Cyan
 }
 
