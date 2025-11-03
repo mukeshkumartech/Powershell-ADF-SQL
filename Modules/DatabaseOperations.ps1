@@ -31,4 +31,20 @@ class DatabaseOperations {
             throw "Failed to execute SQL query: $_"
         }
     }
+
+    [void] ExecuteParameterized([string]$query, [hashtable]$parameters) {
+        try {
+            $cmd = $this.Connection.CreateCommand()
+            $cmd.CommandText = $query
+            
+            foreach ($param in $parameters.GetEnumerator()) {
+                [void]$cmd.Parameters.AddWithValue($param.Key, $param.Value)
+            }
+            
+            $cmd.ExecuteNonQuery() | Out-Null
+        }
+        catch {
+            throw "Failed to execute parameterized SQL query: $_"
+        }
+    }
 }
