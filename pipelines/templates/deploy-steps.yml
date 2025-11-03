@@ -56,8 +56,8 @@ steps:
     targetType: 'inline'
     script: |
       Write-Host "Installing Azure PowerShell modules for ${{ parameters.environment }}..." -ForegroundColor Green
-      
-      Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+
+      # Note: ExecutionPolicy is already set appropriately in Azure DevOps hosted agents
       
       $modules = @(
           @{ Name = 'Az.Accounts'; MinVersion = '2.12.0' },
