@@ -47,8 +47,8 @@ class DatabaseConnection {
             
             $secrets = @{}
             foreach ($task in $secretTasks) {
-                $secretValue = $this.GetKeyVaultSecret($keyVaultName, $task.SecretName)
-                $secrets[$task.Name] = $secretValue
+                $retrievedValue = $this.GetKeyVaultSecret($keyVaultName, $task.SecretName)
+                $secrets[$task.Name] = $retrievedValue
             }
 
             Write-Host "Successfully retrieved all Service Principal credentials from Key Vault." -ForegroundColor Green
@@ -56,8 +56,9 @@ class DatabaseConnection {
             return $secrets
         }
         catch {
-            Write-Error "Failed to retrieve Service Principal credentials from Key Vault: $($_.Exception.Message)"
-            throw "Key Vault access failed: $($_.Exception.Message)"
+            $exceptionMessage = $_.Exception.Message
+            Write-Error "Failed to retrieve Service Principal credentials from Key Vault: $exceptionMessage"
+            throw "Key Vault access failed: $exceptionMessage"
         }
     }
 
@@ -81,18 +82,19 @@ class DatabaseConnection {
 
     hidden [string] GetKeyVaultSecret([string] $keyVaultName, [string] $secretName) {
         try {
-            $secret = Get-AzKeyVaultSecret -VaultName $keyVaultName -Name $secretName -AsPlainText -ErrorAction Stop
+            $retrievedSecret = Get-AzKeyVaultSecret -VaultName $keyVaultName -Name $secretName -AsPlainText
             
-            if ([string]::IsNullOrWhiteSpace($secret)) {
+            if ([string]::IsNullOrWhiteSpace($retrievedSecret)) {
                 throw "Secret '$secretName' is empty or null"
             }
             
             Write-Host "  ✓ Retrieved secret: $secretName" -ForegroundColor Green
-            return $secret
+            return $retrievedSecret
         }
         catch {
+            $exceptionMessage = $_.Exception.Message
             Write-Error "Failed to retrieve secret '$secretName' from Key Vault '$keyVaultName'"
-            throw "Secret retrieval failed for '$secretName': $($_.Exception.Message)"
+            throw "Secret retrieval failed for '$secretName': $exceptionMessage"
         }
     }
 
@@ -113,8 +115,9 @@ class DatabaseConnection {
             )
         }
         catch {
-            Write-Error "Key Vault Service Principal connection failed: $($_.Exception.Message)"
-            throw "Connection failed: $($_.Exception.Message)"
+            $exceptionMessage = $_.Exception.Message
+            Write-Error "Key Vault Service Principal connection failed: $exceptionMessage"
+            throw "Connection failed: $exceptionMessage"
         }
     }
 
@@ -141,7 +144,9 @@ class DatabaseConnection {
             # Use PowerShell 7+ enhanced Invoke-RestMethod features
             $tokenResponse = Invoke-RestMethod -Uri $tokenEndpoint -Method POST -Body $requestBody -ContentType "application/x-www-form-urlencoded"
             
-            if ([string]::IsNullOrWhiteSpace($tokenResponse.access_token)) { throw "Failed to obtain access token from Azure AD" }
+            if ([string]::IsNullOrWhiteSpace($tokenResponse.access_token)) { 
+                throw "Failed to obtain access token from Azure AD" 
+            }
             $this.AccessToken = $tokenResponse.access_token
             Write-Host "Successfully obtained access token using Service Principal." -ForegroundColor Green
 
@@ -158,7 +163,8 @@ class DatabaseConnection {
             return $this.Connection
         }
         catch {
-            Write-Error "Service Principal connection failed: $($_.Exception.Message)"
+            $exceptionMessage = $_.Exception.Message
+            Write-Error "Service Principal connection failed: $exceptionMessage"
             
             # Clean up connection if it was created
             if ($this.Connection) {
@@ -166,7 +172,7 @@ class DatabaseConnection {
             }
             $this.Connection = $null
             
-            throw "Service Principal authentication failed: $($_.Exception.Message)"
+            throw "Service Principal authentication failed: $exceptionMessage"
         }
     }
 
@@ -188,8 +194,9 @@ class DatabaseConnection {
             }
         }
         catch {
-            Write-Error "Database connection test failed: $($_.Exception.Message)"
-            throw "Connection test failed: $($_.Exception.Message)"
+            $exceptionMessage = $_.Exception.Message
+            Write-Error "Database connection test failed: $exceptionMessage"
+            throw "Connection test failed: $exceptionMessage"
         }
         finally {
             if ($cmd) {
@@ -209,7 +216,8 @@ class DatabaseConnection {
                 $this.Connection = $null
             }
             catch {
-                Write-Warning "Error closing database connection: $($_.Exception.Message)"
+                $exceptionMessage = $_.Exception.Message
+                Write-Warning "Error closing database connection: $exceptionMessage"
             }
         }
     }
