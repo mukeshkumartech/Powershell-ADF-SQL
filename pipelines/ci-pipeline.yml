@@ -231,7 +231,7 @@ jobs:
         }
 
   # Run unit tests (if available)
-   - task: PowerShell@2
+  - task: PowerShell@2
     displayName: 'Run Unit Tests'
     inputs:
       targetType: 'inline'
