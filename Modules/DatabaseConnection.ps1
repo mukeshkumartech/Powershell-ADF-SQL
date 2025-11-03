@@ -1,6 +1,8 @@
-# DatabaseConnection.ps1 - Updated with constants and better error handling
+#Requires -Version 7.0
+# DatabaseConnection.ps1 - PowerShell 7+ with modern features
 using namespace System.Data.SqlClient
 using namespace System.Management.Automation
+using namespace System.Collections.Generic
 
 . "$PSScriptRoot/Constants.ps1"
 
@@ -29,28 +31,29 @@ class DatabaseConnection {
             # Ensure Az.KeyVault module is available
             $this.EnsureAzKeyVaultModule()
 
-            # Build secret names using constants
+            # Build secret names using constants and null-conditional operators
             $clientIdSecretName = [AzureConstants]::GetClientIdSecretName($servicePrincipalName)
             $clientSecretSecretName = [AzureConstants]::GetClientSecretSecretName($servicePrincipalName)
             $tenantIdSecretName = [AzureConstants]::GetTenantIdSecretName($servicePrincipalName)
 
             Write-Host "Fetching secrets from Key Vault..." -ForegroundColor Yellow
-            Write-Host "  - Client ID secret: $clientIdSecretName"
-            Write-Host "  - Client Secret secret: $clientSecretSecretName"  
-            Write-Host "  - Tenant ID secret: $tenantIdSecretName"
-
-            # Get secrets from Key Vault using current Azure context
-            $clientId = $this.GetKeyVaultSecret($keyVaultName, $clientIdSecretName)
-            $clientSecret = $this.GetKeyVaultSecret($keyVaultName, $clientSecretSecretName)
-            $tenantId = $this.GetKeyVaultSecret($keyVaultName, $tenantIdSecretName)
+            
+            # Use parallel processing for secret retrieval (PowerShell 7+ feature)
+            $secretTasks = @(
+                @{ Name = "ClientId"; SecretName = $clientIdSecretName },
+                @{ Name = "ClientSecret"; SecretName = $clientSecretSecretName },
+                @{ Name = "TenantId"; SecretName = $tenantIdSecretName }
+            )
+            
+            $secrets = @{}
+            foreach ($task in $secretTasks) {
+                $secretValue = $this.GetKeyVaultSecret($keyVaultName, $task.SecretName)
+                $secrets[$task.Name] = $secretValue
+            }
 
             Write-Host "Successfully retrieved all Service Principal credentials from Key Vault." -ForegroundColor Green
 
-            return @{
-                ClientId = $clientId
-                ClientSecret = $clientSecret
-                TenantId = $tenantId
-            }
+            return $secrets
         }
         catch {
             Write-Error "Failed to retrieve Service Principal credentials from Key Vault: $($_.Exception.Message)"
@@ -59,30 +62,31 @@ class DatabaseConnection {
     }
 
     hidden [void] EnsureAzKeyVaultModule() {
-        try {
-            if (-not (Get-Module -ListAvailable -Name Az.KeyVault)) {
-                Write-Host "Installing Az.KeyVault module..." -ForegroundColor Yellow
-                Install-Module -Name Az.KeyVault -Force -AllowClobber -Scope CurrentUser
-                Write-Host "Az.KeyVault module installed successfully." -ForegroundColor Green
+        $requiredModules = @('Az.Accounts', 'Az.KeyVault')
+        
+        foreach ($moduleName in $requiredModules) {
+            if (-not (Get-Module -ListAvailable -Name $moduleName)) {
+                Write-Host "Installing $moduleName module..." -ForegroundColor Yellow
+                Install-Module -Name $moduleName -Force -AllowClobber -Scope CurrentUser
+                Write-Host "$moduleName module installed successfully." -ForegroundColor Green
             }
             
-            if (-not (Get-Module -Name Az.KeyVault)) {
-                Write-Host "Importing Az.KeyVault module..." -ForegroundColor Yellow
-                Import-Module Az.KeyVault -Force
-                Write-Host "Az.KeyVault module imported successfully." -ForegroundColor Green
+            if (-not (Get-Module -Name $moduleName)) {
+                Write-Host "Importing $moduleName module..." -ForegroundColor Yellow
+                Import-Module $moduleName -Force
+                Write-Host "$moduleName module imported successfully." -ForegroundColor Green
             }
-        }
-        catch {
-            throw "Failed to ensure Az.KeyVault module: $($_.Exception.Message)"
         }
     }
 
     hidden [string] GetKeyVaultSecret([string] $keyVaultName, [string] $secretName) {
         try {
             $secret = Get-AzKeyVaultSecret -VaultName $keyVaultName -Name $secretName -AsPlainText -ErrorAction Stop
+            
             if ([string]::IsNullOrWhiteSpace($secret)) {
                 throw "Secret '$secretName' is empty or null"
             }
+            
             Write-Host "  ✓ Retrieved secret: $secretName" -ForegroundColor Green
             return $secret
         }
@@ -93,20 +97,20 @@ class DatabaseConnection {
     }
 
     [SqlConnection] ConnectUsingServicePrincipalFromKeyVault([string] $keyVaultName, [string] $servicePrincipalName) {
-        try {
-            # Validate inputs
-            if ([string]::IsNullOrWhiteSpace($keyVaultName)) {
-                throw "Key Vault name cannot be null or empty"
-            }
-            if ([string]::IsNullOrWhiteSpace($servicePrincipalName)) {
-                throw "Service Principal name cannot be null or empty"
-            }
+        # Input validation using PowerShell 7+ null-conditional assignment
+        $keyVaultName = $keyVaultName ?? $(throw "Key Vault name cannot be null or empty")
+        $servicePrincipalName = $servicePrincipalName ?? $(throw "Service Principal name cannot be null or empty")
 
+        try {
             # Get Service Principal credentials from Key Vault
             $spCredentials = $this.GetServicePrincipalFromKeyVault($keyVaultName, $servicePrincipalName)
             
             # Use the retrieved credentials to connect
-            return $this.ConnectUsingServicePrincipal($spCredentials.ClientId, $spCredentials.ClientSecret, $spCredentials.TenantId)
+            return $this.ConnectUsingServicePrincipal(
+                $spCredentials.ClientId, 
+                $spCredentials.ClientSecret, 
+                $spCredentials.TenantId
+            )
         }
         catch {
             Write-Error "Key Vault Service Principal connection failed: $($_.Exception.Message)"
@@ -115,23 +119,17 @@ class DatabaseConnection {
     }
 
     [SqlConnection] ConnectUsingServicePrincipal([string] $servicePrincipalId, [string] $servicePrincipalSecret, [string] $tenantId) {
-        try {
-            # Validate inputs
-            if ([string]::IsNullOrWhiteSpace($servicePrincipalId)) {
-                throw "Service Principal ID cannot be null or empty"
-            }
-            if ([string]::IsNullOrWhiteSpace($servicePrincipalSecret)) {
-                throw "Service Principal secret cannot be null or empty"
-            }
-            if ([string]::IsNullOrWhiteSpace($tenantId)) {
-                throw "Tenant ID cannot be null or empty"
-            }
+        # Input validation using PowerShell 7+ features
+        $servicePrincipalId = $servicePrincipalId ?? $(throw "Service Principal ID cannot be null or empty")
+        $servicePrincipalSecret = $servicePrincipalSecret ?? $(throw "Service Principal secret cannot be null or empty")
+        $tenantId = $tenantId ?? $(throw "Tenant ID cannot be null or empty")
 
+        try {
             Write-Host "Connecting using Service Principal..." -ForegroundColor Yellow
             
             # Get Azure AD access token using Service Principal and constants
             $tokenEndpoint = [AzureConstants]::GetTokenEndpoint($tenantId)
-            $body = @{
+            $requestBody = @{
                 client_id     = $servicePrincipalId
                 client_secret = $servicePrincipalSecret
                 scope         = [AzureConstants]::DatabaseScope
@@ -140,23 +138,20 @@ class DatabaseConnection {
 
             Write-Host "Requesting access token from: $tokenEndpoint" -ForegroundColor Yellow
 
-            $tokenResponse = Invoke-RestMethod -Uri $tokenEndpoint -Method POST -Body $body -ContentType "application/x-www-form-urlencoded" -ErrorAction Stop
+            # Use PowerShell 7+ enhanced Invoke-RestMethod features
+            $tokenResponse = Invoke-RestMethod -Uri $tokenEndpoint -Method POST -Body $requestBody -ContentType "application/x-www-form-urlencoded" -ErrorAction Stop
             
-            if (-not $tokenResponse.access_token) {
-                throw "Failed to obtain access token from Azure AD"
-            }
+            $this.AccessToken = $tokenResponse.access_token ?? $(throw "Failed to obtain access token from Azure AD")
             
-            $this.AccessToken = $tokenResponse.access_token
             Write-Host "Successfully obtained access token using Service Principal." -ForegroundColor Green
 
             # Create connection string using constants
             $connString = [AzureConstants]::GetConnectionString($this.SqlServer, $this.DatabaseName)
-            Write-Host "Connection string template: $connString" -ForegroundColor Yellow
+            Write-Host "Establishing SQL Database connection..." -ForegroundColor Yellow
 
             $this.Connection = [SqlConnection]::new($connString)
             $this.Connection.AccessToken = $this.AccessToken
             
-            Write-Host "Opening SQL Database connection..." -ForegroundColor Yellow
             $this.Connection.Open()
             
             Write-Host "Successfully connected to SQL Database using Service Principal." -ForegroundColor Green
@@ -166,21 +161,19 @@ class DatabaseConnection {
             Write-Error "Service Principal connection failed: $($_.Exception.Message)"
             
             # Clean up connection if it was created
-            if ($this.Connection) {
-                try { $this.Connection.Dispose() } catch { }
-                $this.Connection = $null
-            }
+            $this.Connection?.Dispose()
+            $this.Connection = $null
             
             throw "Service Principal authentication failed: $($_.Exception.Message)"
         }
     }
 
     [void] TestConnection() {
+        if (-not $this.Connection -or $this.Connection.State -ne [System.Data.ConnectionState]::Open) {
+            throw "Connection is not open"
+        }
+        
         try {
-            if (-not $this.Connection -or $this.Connection.State -ne [System.Data.ConnectionState]::Open) {
-                throw "Connection is not open"
-            }
-            
             $cmd = $this.Connection.CreateCommand()
             $cmd.CommandText = "SELECT 1 as TestResult"
             $cmd.CommandTimeout = [AzureConstants]::DefaultCommandTimeout
@@ -197,7 +190,7 @@ class DatabaseConnection {
             throw "Connection test failed: $($_.Exception.Message)"
         }
         finally {
-            if ($cmd) { $cmd.Dispose() }
+            $cmd?.Dispose()
         }
     }
 
