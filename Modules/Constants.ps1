@@ -10,7 +10,7 @@ class AzureConstants {
     
     # Azure SQL Database Configuration
     static [string] $SqlServerPortTemplate = "tcp:{0},1433"
-    static [string] $SqlConnectionStringTemplate = "Server=tcp:{0},1433;Database={1};Authentication=Active Directory Access Token;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+    static [string] $SqlConnectionStringTemplate = "Server=tcp:{0},1433;Database={1};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
     
     # Key Vault Configuration
     static [string] $ServicePrincipalClientIdSuffix = "-client-id"
