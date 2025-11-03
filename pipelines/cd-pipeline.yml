@@ -48,7 +48,7 @@ jobs:
             sqlServer: $(variables['${{ parameters.sqlServerVar }}'])               
             databaseName: $(variables['${{ parameters.databaseNameVar }}'])                                             
             keyVaultName: $(variables['${{ parameters.keyVaultNameVar }}'])                                             
-            serviceConnection: $(variables['${{ parameters.serviceConnectionVar }}'])                                   
+            serviceConnection: ${{ parameters.serviceConnectionVar }}                                   
             servicePrincipalName: ${{ parameters.servicePrincipalName }}            
             tableName: ${{ parameters.tableName }}                                  
             runMode: ${{ parameters.runMode }}                                      
