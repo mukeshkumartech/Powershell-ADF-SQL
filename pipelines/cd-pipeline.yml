@@ -13,9 +13,9 @@ parameters:
   type: string
 - name: keyVaultNameVar
   type: string
-- name: serviceConnectionVar        
+- name: serviceConnectionVar
   type: string
-- name: servicePrincipalName        
+- name: servicePrincipalName
   type: string
 - name: tableName
   type: string
@@ -30,27 +30,27 @@ parameters:
   default: 1
 
 jobs:
-- deployment: DeployToEnvironment   
-  displayName: 'Deploy to ${{ parameters.environment }}'                  
+- deployment: DeployToEnvironment
+  displayName: 'Deploy to ${{ parameters.environment }}'
   pool:
-    vmImage: ${{ parameters.vmImageName }}                                
-  environment: ${{ parameters.environment }}                              
+    vmImage: ${{ parameters.vmImageName }}
+  environment: ${{ parameters.environment }}
   variables:
-  - group: ${{ parameters.variableGroup }}                              
+  - group: ${{ parameters.variableGroup }}
   strategy:
     runOnce:
       deploy:
         steps:
-        # Use deployment template   
-        - template: templates/deploy-steps.yml                                    
+        # Use deployment template
+        - template: templates/deploy-steps.yml
           parameters:
-            environment: ${{ parameters.environment }}                              
-            sqlServer: $(variables['${{ parameters.sqlServerVar }}'])               
-            databaseName: $(variables['${{ parameters.databaseNameVar }}'])                                             
-            keyVaultName: $(variables['${{ parameters.keyVaultNameVar }}'])                                             
-            serviceConnection: ${{ parameters.serviceConnectionVar }}                                   
-            servicePrincipalName: ${{ parameters.servicePrincipalName }}            
-            tableName: ${{ parameters.tableName }}                                  
-            runMode: ${{ parameters.runMode }}                                      
-            runIntervalMinutes: ${{ parameters.runIntervalMinutes }}                
+            environment: ${{ parameters.environment }}
+            sqlServer: $(variables['${{ parameters.sqlServerVar }}'])
+            databaseName: $(variables['${{ parameters.databaseNameVar }}'])
+            keyVaultName: $(variables['${{ parameters.keyVaultNameVar }}'])
+            serviceConnection: $(variables['${{ parameters.serviceConnectionVar }}'])  # FIXED: Now resolves from variable group
+            servicePrincipalName: $(variables['${{ parameters.servicePrincipalName }}'])  # FIXED: Now resolves from variable group
+            tableName: $(variables['${{ parameters.tableName }}'])                        # FIXED: Now resolves from variable group
+            runMode: ${{ parameters.runMode }}
+            runIntervalMinutes: ${{ parameters.runIntervalMinutes }}
             maxIterations: ${{ parameters.maxIterations }}
