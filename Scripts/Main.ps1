@@ -1,10 +1,14 @@
-# Main.ps1 - Entry point with complete error handling and configuration
+#Requires -Version 7.0
+# Main.ps1 - Entry point with PowerShell 7+ features
 param (
     [string] $ConfigFilePath = $null
 )
 
 # Import all required modules
 try {
+    using namespace System.Collections.Generic
+    using namespace System.IO
+    
     . "$PSScriptRoot/../Modules/Constants.ps1"
     . "$PSScriptRoot/../Modules/AppConfig.ps1"
     . "$PSScriptRoot/../Modules/DatabaseConnection.ps1"
@@ -16,47 +20,57 @@ catch {
     exit 1
 }
 
-# Enhanced logging function
+# Enhanced logging function with structured logging
 function Write-LogMessage {
     param(
         [string] $Message, 
         [string] $Level = [AzureConstants]::LogLevelInfo,
-        [string] $Color = "White"
+        [hashtable] $Properties = @{}
     )
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logMessage = "[$timestamp] [$Level] $Message"
     
-    # Set color based on level
-    switch ($Level) {
-        "ERROR" { $Color = "Red" }
-        "WARN"  { $Color = "Yellow" }
-        "INFO"  { $Color = "Green" }
-        default { $Color = "White" }
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logEntry = @{
+        Timestamp = $timestamp
+        Level = $Level
+        Message = $Message
+        Properties = $Properties
     }
     
-    Write-Host $logMessage -ForegroundColor $Color
+    # Set color based on level
+    $color = switch ($Level) {
+        "ERROR" { "Red" }
+        "WARN"  { "Yellow" }
+        "INFO"  { "Green" }
+        default { "White" }
+    }
+    
+    # Display structured log entry
+    $logMessage = "[$timestamp] [$Level] $Message"
+    if ($Properties.Count -gt 0) {
+        $logMessage += " | $($Properties | ConvertTo-Json -Compress)"
+    }
+    
+    Write-Host $logMessage -ForegroundColor $color
 }
 
 # Global error handling
 $ErrorActionPreference = "Stop"
 
 try {
-    Write-LogMessage "=== PowerShell SQL Automation Started ===" "INFO"
+    Write-LogMessage "=== PowerShell SQL Automation Started ===" "INFO" @{
+        PowerShellVersion = $PSVersionTable.PSVersion.ToString()
+        OS = $PSVersionTable.OS
+    }
     
-    # Load configuration
+    # Load configuration using modern PowerShell 7+ features
     Write-LogMessage "Loading application configuration..." "INFO"
     
-    if ($ConfigFilePath -and (Test-Path $ConfigFilePath)) {
-        # Load from JSON file if provided
-        $configJson = Get-Content $ConfigFilePath | ConvertFrom-Json
-        $configHash = @{}
-        $configJson.PSObject.Properties | ForEach-Object { $configHash[$_.Name] = $_.Value }
-        $config = [AppConfig]::new($configHash)
-        Write-LogMessage "Configuration loaded from file: $ConfigFilePath" "INFO"
+    $config = if ($ConfigFilePath -and (Test-Path $ConfigFilePath)) {
+        # Load from JSON file using static factory method
+        [AppConfig]::FromJsonFile($ConfigFilePath)
     } else {
         # Load from environment variables
-        $config = [AppConfig]::new()
-        Write-LogMessage "Configuration loaded from environment variables" "INFO"
+        [AppConfig]::new()
     }
     
     # Display configuration
@@ -64,13 +78,26 @@ try {
     
     $iteration = 0
     $totalErrors = 0
+    $executionResults = [List[hashtable]]::new()
 
     do {
         $iteration++
-        Write-LogMessage "=== Starting Iteration $iteration of $($config.MaxIterations) ===" "INFO"
+        $iterationStartTime = Get-Date
+        
+        Write-LogMessage "=== Starting Iteration $iteration of $($config.MaxIterations) ===" "INFO" @{
+            Iteration = $iteration
+            MaxIterations = $config.MaxIterations
+        }
         
         $dbConn = $null
         $conn = $null
+        $iterationResult = @{
+            Iteration = $iteration
+            StartTime = $iterationStartTime
+            Status = "Failed"
+            Error = $null
+            ProcessedRecords = 0
+        }
         
         try {
             # Initialize database connection
@@ -92,9 +119,17 @@ try {
             # Run the data processing
             Write-LogMessage "Starting data processing for table: $($config.TableName)" "INFO"
             $processor = [DataProcessor]::new($dbOps, $config.TableName)
-            $processor.RunProcess()
+            $processedCount = $processor.RunProcess()
             
-            Write-LogMessage "Iteration $iteration completed successfully." "INFO"
+            $iterationResult.ProcessedRecords = $processedCount
+            $iterationResult.Status = "Success"
+            $iterationResult.EndTime = Get-Date
+            $iterationResult.Duration = ($iterationResult.EndTime - $iterationResult.StartTime).TotalSeconds
+            
+            Write-LogMessage "Iteration $iteration completed successfully." "INFO" @{
+                ProcessedRecords = $processedCount
+                DurationSeconds = $iterationResult.Duration
+            }
             
             # Wait before next iteration (if continuous mode)
             if ($config.ContinuousMode -and $iteration -lt $config.MaxIterations) {
@@ -104,8 +139,15 @@ try {
         }
         catch {
             $totalErrors++
-            Write-LogMessage "Error in iteration $iteration : $($_.Exception.Message)" "ERROR"
-            Write-LogMessage "Stack trace: $($_.ScriptStackTrace)" "ERROR"
+            $iterationResult.Error = $_.Exception.Message
+            $iterationResult.EndTime = Get-Date
+            $iterationResult.Duration = ($iterationResult.EndTime - $iterationResult.StartTime).TotalSeconds
+            
+            Write-LogMessage "Error in iteration $iteration" "ERROR" @{
+                ErrorMessage = $_.Exception.Message
+                StackTrace = $_.ScriptStackTrace
+                DurationSeconds = $iterationResult.Duration
+            }
             
             # In continuous mode, wait and retry
             if ($config.ContinuousMode -and $iteration -lt $config.MaxIterations) {
@@ -124,17 +166,31 @@ try {
                     $dbConn.Close()
                 }
                 catch {
-                    Write-LogMessage "Warning: Error closing database connection: $($_.Exception.Message)" "WARN"
+                    Write-LogMessage "Warning: Error closing database connection" "WARN" @{
+                        ErrorMessage = $_.Exception.Message
+                    }
                 }
             }
+            
+            # Add iteration result to collection
+            $executionResults.Add($iterationResult)
         }
         
     } while ($config.ContinuousMode -and $iteration -lt $config.MaxIterations)
 
-    # Final summary
-    Write-LogMessage "=== PowerShell SQL Automation Completed ===" "INFO"
-    Write-LogMessage "Total iterations completed: $iteration" "INFO"
-    Write-LogMessage "Total errors encountered: $totalErrors" "INFO"
+    # Final summary with rich analytics
+    $totalProcessedRecords = ($executionResults | Measure-Object -Property ProcessedRecords -Sum).Sum
+    $successfulIterations = ($executionResults | Where-Object { $_.Status -eq "Success" }).Count
+    $averageDuration = ($executionResults | Measure-Object -Property Duration -Average).Average
+    
+    Write-LogMessage "=== PowerShell SQL Automation Completed ===" "INFO" @{
+        TotalIterations = $iteration
+        SuccessfulIterations = $successfulIterations
+        TotalErrors = $totalErrors
+        TotalProcessedRecords = $totalProcessedRecords
+        AverageDurationSeconds = [math]::Round($averageDuration, 2)
+        SuccessRate = [math]::Round(($successfulIterations / $iteration) * 100, 2)
+    }
     
     if ($totalErrors -eq 0) {
         Write-LogMessage "All iterations completed successfully!" "INFO"
@@ -145,7 +201,9 @@ try {
     }
 }
 catch {
-    Write-LogMessage "Fatal error in main execution: $($_.Exception.Message)" "ERROR"
-    Write-LogMessage "Stack trace: $($_.ScriptStackTrace)" "ERROR"
+    Write-LogMessage "Fatal error in main execution" "ERROR" @{
+        ErrorMessage = $_.Exception.Message
+        StackTrace = $_.ScriptStackTrace
+    }
     exit 1
 }
