@@ -9,29 +9,30 @@ jobs:
   displayName: 'Build, Validate & Test PowerShell Scripts'
   pool:
     vmImage: ${{ parameters.vmImageName }}
-  
+
   steps:
   # Checkout repository from GitHub
   - checkout: self
     displayName: 'Checkout GitHub Repository'
     persistCredentials: true
+
+  # Set PowerShell execution policy
   - task: PowerShell@2
-  displayName: 'Set PowerShell Execution Policy'
-  inputs:
-    targetType: 'inline'
-    script: |
-      Write-Host "PowerShell execution policy is already configured in Azure DevOps" -ForegroundColor Green
-      Write-Host "✓ Execution policy check completed" -ForegroundColor Green
-"
+    displayName: 'Set PowerShell Execution Policy'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "PowerShell execution policy is already configured in Azure DevOps" -ForegroundColor Green
+        Write-Host "✓ Execution policy check completed" -ForegroundColor Green
 
   # Install required PowerShell modules
   - task: PowerShell@2
     displayName: 'Install Required PowerShell Modules'
     inputs:
       targetType: 'inline'
-    script: |
+      script: |
         Write-Host "Installing required PowerShell modules..." -ForegroundColor Green
-        
+
         $modules = @(
             @{ Name = 'Az.Accounts'; MinVersion = '2.12.0' },
             @{ Name = 'Az.KeyVault'; MinVersion = '4.9.0' },
@@ -39,12 +40,12 @@ jobs:
             @{ Name = 'PSScriptAnalyzer'; MinVersion = '1.21.0' },
             @{ Name = 'Pester'; MinVersion = '5.5.0' }
         )
-        
+
         foreach ($module in $modules) {
-            $installed = Get-Module -ListAvailable -Name $module.Name | 
-                        Where-Object { $_.Version -ge [Version]$module.MinVersion } | 
+            $installed = Get-Module -ListAvailable -Name $module.Name |
+                        Where-Object { $_.Version -ge [Version]$module.MinVersion } |
                         Select-Object -First 1
-            
+
             if (-not $installed) {
                 Write-Host "Installing $($module.Name) (min version: $($module.MinVersion))..." -ForegroundColor Yellow
                 Install-Module -Name $module.Name -MinimumVersion $module.MinVersion -Force -AllowClobber -Scope CurrentUser -Repository PSGallery
@@ -53,7 +54,7 @@ jobs:
                 Write-Host "✓ $($module.Name) already installed (version: $($installed.Version))" -ForegroundColor Green
             }
         }
-        
+
         Write-Host "All required modules are ready." -ForegroundColor Green
 
   # Validate PowerShell syntax
@@ -61,9 +62,9 @@ jobs:
     displayName: 'Validate PowerShell Syntax'
     inputs:
       targetType: 'inline'
-    script: |
+      script: |
         Write-Host "Validating PowerShell script syntax..." -ForegroundColor Green
-        
+
         # Define all scripts to validate
         $scriptsToValidate = @(
             @{ Path = "Scripts/Main.ps1"; Required = $true },
@@ -74,21 +75,23 @@ jobs:
             @{ Path = "Modules/DatabaseConnection.ps1"; Required = $true },
             @{ Path = "Modules/DatabaseOperations.ps1"; Required = $true }
         )
-        
+
         $errorCount = 0
         $warningCount = 0
-        
+
         foreach ($script in $scriptsToValidate) {
             $fullPath = Join-Path "$(Build.SourcesDirectory)" $script.Path
-            
+
             if (Test-Path $fullPath) {
                 try {
                     Write-Host "Validating: $($script.Path)" -ForegroundColor Yellow
-                    
-                      # Parse the script for syntax errors
-                      $tokens = $null   
-                      $errors = $null   
-                      $null = [System.Management.Automation.Language.Parser]::ParseInput((Get-Content $fullPath -Raw), [ref]$tokens, [ref]$errors)                    if ($errors.Count -gt 0) {
+
+                    # Parse the script for syntax errors
+                    $tokens = $null
+                    $errors = $null
+                    $null = [System.Management.Automation.Language.Parser]::ParseInput((Get-Content $fullPath -Raw), [ref]$tokens, [ref]$errors)
+
+                    if ($errors.Count -gt 0) {
                         Write-Host "✗ $($script.Path) - Syntax Errors Found:" -ForegroundColor Red
                         foreach ($error in $errors) {
                             Write-Host "  Line $($error.Token.StartLine): $($error.Message)" -ForegroundColor Red
@@ -112,15 +115,16 @@ jobs:
                 }
             }
         }
-        
-        Write-Host "`nValidation Summary:" -ForegroundColor Cyan
+
+        Write-Host "
+Validation Summary:" -ForegroundColor Cyan
         Write-Host "  Errors: $errorCount" -ForegroundColor $(if ($errorCount -gt 0) { "Red" } else { "Green" })
         Write-Host "  Warnings: $warningCount" -ForegroundColor $(if ($warningCount -gt 0) { "Yellow" } else { "Green" })
-        
+
         if ($errorCount -gt 0) {
             throw "PowerShell syntax validation failed with $errorCount error(s)"
         }
-        
+
         Write-Host "✓ All PowerShell scripts have valid syntax." -ForegroundColor Green
 
   # Run PSScriptAnalyzer code quality check
@@ -128,52 +132,55 @@ jobs:
     displayName: 'Run PSScriptAnalyzer Code Quality Check'
     inputs:
       targetType: 'inline'
-    script: |
+      script: |
         Write-Host "Running PSScriptAnalyzer code quality analysis..." -ForegroundColor Green
-        
+
         Import-Module PSScriptAnalyzer -Force
-        
+
         # Define analysis rules to exclude (adjust as needed)
         $excludeRules = @(
             'PSAvoidUsingPlainTextForPassword',
             'PSAvoidUsingConvertToSecureStringWithPlainText'
         )
-        
+
         Write-Host "Analyzing PowerShell scripts for code quality issues..." -ForegroundColor Yellow
-        
+
         $analysisResults = Invoke-ScriptAnalyzer -Path "$(Build.SourcesDirectory)" -Recurse -ReportSummary -ExcludeRule $excludeRules
-        
+
         if ($analysisResults) {
             # Group results by severity
             $errors = $analysisResults | Where-Object {$_.Severity -eq 'Error'}
             $warnings = $analysisResults | Where-Object {$_.Severity -eq 'Warning'}
             $info = $analysisResults | Where-Object {$_.Severity -eq 'Information'}
-            
-            Write-Host "`nCode Quality Analysis Results:" -ForegroundColor Cyan
+
+            Write-Host "
+Code Quality Analysis Results:" -ForegroundColor Cyan
             Write-Host "  Errors: $($errors.Count)" -ForegroundColor $(if ($errors.Count -gt 0) { "Red" } else { "Green" })
             Write-Host "  Warnings: $($warnings.Count)" -ForegroundColor $(if ($warnings.Count -gt 0) { "Yellow" } else { "Green" })
             Write-Host "  Information: $($info.Count)" -ForegroundColor Cyan
-            
+
             # Display detailed results
             if ($errors.Count -gt 0) {
-                Write-Host "`nErrors found:" -ForegroundColor Red
+                Write-Host "
+Errors found:" -ForegroundColor Red
                 $errors | ForEach-Object {
                     Write-Host "  $($_.ScriptName):$($_.Line) - $($_.RuleName): $($_.Message)" -ForegroundColor Red
                 }
             }
-            
+
             if ($warnings.Count -gt 0) {
-                Write-Host "`nWarnings found:" -ForegroundColor Yellow
+                Write-Host "
+Warnings found:" -ForegroundColor Yellow
                 $warnings | ForEach-Object {
                     Write-Host "  $($_.ScriptName):$($_.Line) - $($_.RuleName): $($_.Message)" -ForegroundColor Yellow
                 }
             }
-            
+
             # Fail build if there are errors
             if ($errors.Count -gt 0) {
                 throw "Code quality check failed with $($errors.Count) error(s)"
             }
-            
+
             # Warn if too many warnings
             if ($warnings.Count -gt 10) {
                 Write-Warning "Code has $($warnings.Count) warnings (consider addressing them)"
@@ -187,16 +194,16 @@ jobs:
     displayName: 'Create Test Configuration Files'
     inputs:
       targetType: 'inline'
-    script: |
+      script: |
         Write-Host "Creating test configuration files..." -ForegroundColor Green
-        
+
         # Ensure Config directory exists
         $configDir = "$(Build.SourcesDirectory)/Config"
         if (-not (Test-Path $configDir)) {
             New-Item -ItemType Directory -Path $configDir -Force
             Write-Host "✓ Created Config directory" -ForegroundColor Green
         }
-        
+
         # Create sample configuration for CI testing
         $testConfig = @{
             Environment = "CI"
@@ -209,12 +216,12 @@ jobs:
             RunIntervalMinutes = 1
             MaxIterations = 1
         }
-        
+
         $configPath = Join-Path $configDir "config-ci.json"
         $testConfig | ConvertTo-Json -Depth 3 | Set-Content -Path $configPath -Encoding UTF8
-        
+
         Write-Host "✓ Test configuration created: $configPath" -ForegroundColor Green
-        
+
         # Validate configuration can be loaded
         try {
             $loadedConfig = Get-Content $configPath | ConvertFrom-Json
@@ -231,17 +238,17 @@ jobs:
     displayName: 'Run Unit Tests'
     inputs:
       targetType: 'inline'
-    script: |
+      script: |
         Write-Host "Checking for unit tests..." -ForegroundColor Green
-        
+
         $testPath = "$(Build.SourcesDirectory)/Tests"
         $testResultsPath = "$(Build.SourcesDirectory)/TestResults.xml"
-        
+
         if (Test-Path $testPath) {
             Write-Host "Unit tests found. Running Pester tests..." -ForegroundColor Yellow
-            
+
             Import-Module Pester -Force
-            
+
             # Configure Pester
             $configuration = New-PesterConfiguration
             $configuration.Run.Path = $testPath
@@ -249,24 +256,25 @@ jobs:
             $configuration.TestResult.Enabled = $true
             $configuration.TestResult.OutputPath = $testResultsPath
             $configuration.TestResult.OutputFormat = 'NUnitXml'
-            
+
             # Run tests
             $testResults = Invoke-Pester -Configuration $configuration
-            
-            Write-Host "`nTest Results Summary:" -ForegroundColor Cyan
+
+            Write-Host "
+Test Results Summary:" -ForegroundColor Cyan
             Write-Host "  Total: $($testResults.TotalCount)" -ForegroundColor Cyan
             Write-Host "  Passed: $($testResults.PassedCount)" -ForegroundColor Green
             Write-Host "  Failed: $($testResults.FailedCount)" -ForegroundColor Red
             Write-Host "  Skipped: $($testResults.SkippedCount)" -ForegroundColor Yellow
-            
+
             if ($testResults.FailedCount -gt 0) {
                 throw "Unit tests failed: $($testResults.FailedCount) failed, $($testResults.PassedCount) passed"
             }
-            
+
             Write-Host "All unit tests passed" -ForegroundColor Green
         } else {
             Write-Host "No unit tests found. Creating placeholder test results..." -ForegroundColor Yellow
-            
+
             # Create minimal test results file
             $xmlContent = '<?xml version="1.0" encoding="UTF-8"?>'
             $xmlContent += '<test-results name="PowerShell-SQL-Automation" total="1" errors="0" failures="0">'
@@ -276,7 +284,7 @@ jobs:
             $xmlContent += '</results>'
             $xmlContent += '</test-suite>'
             $xmlContent += '</test-results>'
-            
+
             $xmlContent | Set-Content -Path $testResultsPath -Encoding UTF8
             Write-Host "Placeholder test results created" -ForegroundColor Green
         }
@@ -302,9 +310,9 @@ jobs:
     displayName: 'Create Build Information'
     inputs:
       targetType: 'inline'
-    script: |
+      script: |
         Write-Host "Creating build information file..." -ForegroundColor Green
-        
+
         $buildInfo = @{
             BuildId = "$(Build.BuildId)"
             BuildNumber = "$(Build.BuildNumber)"
@@ -318,10 +326,10 @@ jobs:
                 Version = "$(Agent.Version)"
             }
         }
-        
+
         $buildInfoPath = "$(Build.ArtifactStagingDirectory)/build-info.json"
         $buildInfo | ConvertTo-Json -Depth 3 | Set-Content -Path $buildInfoPath -Encoding UTF8
-        
+
         Write-Host "✓ Build information created: $buildInfoPath" -ForegroundColor Green
 
   # Publish build artifacts
@@ -348,7 +356,7 @@ jobs:
     displayName: 'Build Summary'
     inputs:
       targetType: 'inline'
-    script: |
+      script: |
         Write-Host "=== BUILD COMPLETED SUCCESSFULLY ===" -ForegroundColor Green
         Write-Host "Build Number: $(Build.BuildNumber)" -ForegroundColor Cyan
         Write-Host "Source Branch: $(Build.SourceBranch)" -ForegroundColor Cyan
@@ -359,4 +367,3 @@ jobs:
         Write-Host "✓ Artifacts published successfully" -ForegroundColor Green
         Write-Host "Ready for deployment!" -ForegroundColor Green
     condition: succeeded()
-
