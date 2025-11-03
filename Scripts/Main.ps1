@@ -114,7 +114,7 @@ try {
             
             # Initialize database operations
             Write-LogMessage "Initializing database operations..." "INFO"
-            $dbOps = [DatabaseOperations]::new($conn)
+            $dbOps = New-DatabaseOperations -Connection $conn
             
             # Run the data processing
             Write-LogMessage "Starting data processing for table: $($config.TableName)" "INFO"
