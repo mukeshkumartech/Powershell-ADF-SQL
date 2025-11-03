@@ -231,7 +231,7 @@ jobs:
         }
 
   # Run unit tests (if available)
-  - task: PowerShell@2
+   - task: PowerShell@2
     displayName: 'Run Unit Tests'
     inputs:
       targetType: 'inline'
@@ -260,32 +260,29 @@ jobs:
             Write-Host "`nTest Results Summary:" -ForegroundColor Cyan
             Write-Host "  Total: $($testResults.TotalCount)" -ForegroundColor Cyan
             Write-Host "  Passed: $($testResults.PassedCount)" -ForegroundColor Green
-            Write-Host "  Failed: $($testResults.FailedCount)" -ForegroundColor $(if ($testResults.FailedCount -gt 0) { "Red" } else { "Green" })
+            Write-Host "  Failed: $($testResults.FailedCount)" -ForegroundColor Red
             Write-Host "  Skipped: $($testResults.SkippedCount)" -ForegroundColor Yellow
             
             if ($testResults.FailedCount -gt 0) {
                 throw "Unit tests failed: $($testResults.FailedCount) failed, $($testResults.PassedCount) passed"
             }
             
-            Write-Host "✓ All unit tests passed" -ForegroundColor Green
+            Write-Host "All unit tests passed" -ForegroundColor Green
         } else {
             Write-Host "No unit tests found. Creating placeholder test results..." -ForegroundColor Yellow
             
             # Create minimal test results file
-            $placeholderResults = @"
-<?xml version="1.0" encoding="UTF-8"?>
-<test-results name="PowerShell-SQL-Automation" total="1" errors="0" failures="0" not-run="0" inconclusive="0" ignored="0" skipped="0" invalid="0" date="$(Get-Date -Format 'yyyy-MM-dd')" time="$(Get-Date -Format 'HH:mm:ss')">
-  <environment user="Azure DevOps" machine-name="Azure Pipeline" cwd="$(Build.SourcesDirectory)" user-domain="" platform="Windows" />
-  <culture-info current-culture="en-US" current-uiculture="en-US" />
-  <test-suite name="PowerShell-SQL-Automation" executed="True" result="Success" success="True" time="0.001">
-    <results>
-      <test-case name="No Unit Tests Defined" executed="True" result="Success" success="True" time="0.001" />
-    </results>
-  </test-suite>
-</test-results>
-"@
-            $placeholderResults | Set-Content -Path $testResultsPath -Encoding UTF8
-            Write-Host "✓ Placeholder test results created" -ForegroundColor Green
+            $xmlContent = '<?xml version="1.0" encoding="UTF-8"?>'
+            $xmlContent += '<test-results name="PowerShell-SQL-Automation" total="1" errors="0" failures="0">'
+            $xmlContent += '<test-suite name="PowerShell-SQL-Automation" executed="True" result="Success">'
+            $xmlContent += '<results>'
+            $xmlContent += '<test-case name="No Unit Tests Defined" executed="True" result="Success" />'
+            $xmlContent += '</results>'
+            $xmlContent += '</test-suite>'
+            $xmlContent += '</test-results>'
+            
+            $xmlContent | Set-Content -Path $testResultsPath -Encoding UTF8
+            Write-Host "Placeholder test results created" -ForegroundColor Green
         }
     continueOnError: true
 
