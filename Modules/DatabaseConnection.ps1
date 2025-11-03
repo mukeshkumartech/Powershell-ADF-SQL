@@ -98,8 +98,8 @@ class DatabaseConnection {
 
     [SqlConnection] ConnectUsingServicePrincipalFromKeyVault([string] $keyVaultName, [string] $servicePrincipalName) {
         # Input validation using PowerShell 7+ null-conditional assignment
-        $keyVaultName = $keyVaultName ?? $(throw "Key Vault name cannot be null or empty")
-        $servicePrincipalName = $servicePrincipalName ?? $(throw "Service Principal name cannot be null or empty")
+        if ([string]::IsNullOrWhiteSpace($keyVaultName)) { throw "Key Vault name cannot be null or empty" }
+        if ([string]::IsNullOrWhiteSpace($servicePrincipalName)) { throw "Service Principal name cannot be null or empty" }
 
         try {
             # Get Service Principal credentials from Key Vault
@@ -120,9 +120,9 @@ class DatabaseConnection {
 
     [SqlConnection] ConnectUsingServicePrincipal([string] $servicePrincipalId, [string] $servicePrincipalSecret, [string] $tenantId) {
         # Input validation using PowerShell 7+ features
-        $servicePrincipalId = $servicePrincipalId ?? $(throw "Service Principal ID cannot be null or empty")
-        $servicePrincipalSecret = $servicePrincipalSecret ?? $(throw "Service Principal secret cannot be null or empty")
-        $tenantId = $tenantId ?? $(throw "Tenant ID cannot be null or empty")
+        if ([string]::IsNullOrWhiteSpace($servicePrincipalId)) { throw "Service Principal ID cannot be null or empty" }
+        if ([string]::IsNullOrWhiteSpace($servicePrincipalSecret)) { throw "Service Principal secret cannot be null or empty" }
+        if ([string]::IsNullOrWhiteSpace($tenantId)) { throw "Tenant ID cannot be null or empty" }
 
         try {
             Write-Host "Connecting using Service Principal..." -ForegroundColor Yellow
@@ -141,8 +141,8 @@ class DatabaseConnection {
             # Use PowerShell 7+ enhanced Invoke-RestMethod features
             $tokenResponse = Invoke-RestMethod -Uri $tokenEndpoint -Method POST -Body $requestBody -ContentType "application/x-www-form-urlencoded" -ErrorAction Stop
             
-            $this.AccessToken = $tokenResponse.access_token ?? $(throw "Failed to obtain access token from Azure AD")
-            
+            if ([string]::IsNullOrWhiteSpace($tokenResponse.access_token)) { throw "Failed to obtain access token from Azure AD" }
+            $this.AccessToken = $tokenResponse.access_token
             Write-Host "Successfully obtained access token using Service Principal." -ForegroundColor Green
 
             # Create connection string using constants
@@ -161,7 +161,9 @@ class DatabaseConnection {
             Write-Error "Service Principal connection failed: $($_.Exception.Message)"
             
             # Clean up connection if it was created
-            $this.Connection?.Dispose()
+            if ($this.Connection) {
+                $this.Connection.Dispose()
+            }
             $this.Connection = $null
             
             throw "Service Principal authentication failed: $($_.Exception.Message)"
@@ -190,7 +192,9 @@ class DatabaseConnection {
             throw "Connection test failed: $($_.Exception.Message)"
         }
         finally {
-            $cmd?.Dispose()
+            if ($cmd) {
+                $cmd.Dispose()
+            }
         }
     }
 
