@@ -36,7 +36,6 @@ resources:
   - repository: self
     type: github
     name: mukeshkumartech/Powershell-ADF-SQL  # Replace with your GitHub repo
-    ref: refs/heads/$(Build.SourceBranch)
 
 stages:
 #################################################################
