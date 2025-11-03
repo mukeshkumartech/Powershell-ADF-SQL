@@ -63,7 +63,7 @@ stages:
       sqlServerVar: 'DEV_SQL_SERVER'
       databaseNameVar: 'DEV_DATABASE_NAME'
       keyVaultNameVar: 'DEV_KEY_VAULT_NAME'
-      serviceConnectionVar: 'DEV_SERVICE_CONNECTION'
+      serviceConnectionVar: 'adf-sql-demo-app-registration'
       servicePrincipalName: 'SERVICE_PRINCIPAL_NAME'
       tableName: 'TABLE_NAME'
       runMode: 'single'
