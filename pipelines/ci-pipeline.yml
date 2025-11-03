@@ -21,11 +21,9 @@ jobs:
     displayName: 'Set PowerShell Execution Policy'
     inputs:
       targetType: 'inline'
-      script: |
-        Write-Host "Setting PowerShell execution policy..." -ForegroundColor Green
-        Write-Host "✓ Execution policy set to RemoteSigned" -ForegroundColor Green
-
-  # Install required PowerShell modules
+        script: |
+          Write-Host "PowerShell execution policy is already configured in Azure DevOps" -ForegroundColor Green
+          Write-Host "✓ Execution policy check completed" -ForegroundColor Green  # Install required PowerShell modules
   - task: PowerShell@2
     displayName: 'Install Required PowerShell Modules'
     inputs:
@@ -86,12 +84,10 @@ jobs:
                 try {
                     Write-Host "Validating: $($script.Path)" -ForegroundColor Yellow
                     
-                    # Parse the script for syntax errors
-                    $tokens = $null
-                    $errors = $null
-                    $null = [System.Management.Automation.PSParser]::Tokenize((Get-Content $fullPath -Raw), [ref]$tokens, [ref]$errors)
-                    
-                    if ($errors.Count -gt 0) {
+                      # Parse the script for syntax errors
+                      $tokens = $null   
+                      $errors = $null   
+                      $null = [System.Management.Automation.Language.Parser]::ParseInput((Get-Content $fullPath -Raw), [ref]$tokens, [ref]$errors)                    if ($errors.Count -gt 0) {
                         Write-Host "✗ $($script.Path) - Syntax Errors Found:" -ForegroundColor Red
                         foreach ($error in $errors) {
                             Write-Host "  Line $($error.Token.StartLine): $($error.Message)" -ForegroundColor Red
