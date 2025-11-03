@@ -203,6 +203,7 @@ steps:
 # Execute PowerShell automation
 - task: AzurePowerShell@5
   displayName: 'Execute PowerShell SQL Automation'
+  pwsh: true  # ← This forces PowerShell 7
   inputs:
     azureSubscription: '${{ parameters.serviceConnection }}'
     ScriptType: 'FilePath'
