@@ -1,0 +1,57 @@
+# Continuous Deployment Pipeline
+parameters:
+- name: environment
+  type: string
+- name: vmImageName
+  type: string
+  default: 'windows-latest'
+- name: variableGroup
+  type: string
+- name: sqlServerVar
+  type: string
+- name: databaseNameVar
+  type: string
+- name: keyVaultNameVar
+  type: string
+- name: serviceConnectionVar
+  type: string
+- name: servicePrincipalName
+  type: string
+- name: tableName
+  type: string
+- name: runMode
+  type: string
+  default: 'single'
+- name: runIntervalMinutes
+  type: number
+  default: 30
+- name: maxIterations
+  type: number
+  default: 1
+
+jobs:
+- deployment: DeployToEnvironment
+  displayName: 'Deploy to ${{ parameters.environment }}'
+  pool:
+    vmImage: ${{ parameters.vmImageName }}
+  environment: ${{ parameters.environment }}
+  variables:
+  - group: ${{ parameters.variableGroup }}
+  
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+        # Use deployment template
+        - template: templates/deploy-steps.yml
+          parameters:
+            environment: ${{ parameters.environment }}
+            sqlServer: $(${{ parameters.sqlServerVar }})
+            databaseName: $(${{ parameters.databaseNameVar }})
+            keyVaultName: $(${{ parameters.keyVaultNameVar }})
+            serviceConnection: $(${{ parameters.serviceConnectionVar }})
+            servicePrincipalName: ${{ parameters.servicePrincipalName }}
+            tableName: ${{ parameters.tableName }}
+            runMode: ${{ parameters.runMode }}
+            runIntervalMinutes: ${{ parameters.runIntervalMinutes }}
+            maxIterations: ${{ parameters.maxIterations }}
