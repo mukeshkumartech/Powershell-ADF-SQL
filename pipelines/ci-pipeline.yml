@@ -15,7 +15,7 @@ jobs:
   - checkout: self
     displayName: 'Checkout GitHub Repository'
     persistCredentials: true
-- task: PowerShell@2
+  - task: PowerShell@2
   displayName: 'Set PowerShell Execution Policy'
   inputs:
     targetType: 'inline'
