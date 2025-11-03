@@ -1,4 +1,7 @@
+using namespace System.Collections.Generic
+using namespace System.IO
 #Requires -Version 7.0
+
 # Main.ps1 - Entry point with PowerShell 7+ features
 param (
     [string] $ConfigFilePath = $null
@@ -6,9 +9,6 @@ param (
 
 # Import all required modules
 try {
-    using namespace System.Collections.Generic
-    using namespace System.IO
-    
     . "$PSScriptRoot/../Modules/Constants.ps1"
     . "$PSScriptRoot/../Modules/AppConfig.ps1"
     . "$PSScriptRoot/../Modules/DatabaseConnection.ps1"
