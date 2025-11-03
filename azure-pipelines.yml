@@ -1,177 +1,96 @@
-# Main Entry Point for PowerShell SQL Operations
-# This script orchestrates all database operations
+# Main Pipeline Orchestrator
+# This file orchestrates CI and CD pipelines
+name: PowerShell-SQL-Automation-$(Date:yyyyMMdd)$(Rev:.r)
 
-param(
-    [Parameter(Mandatory=$false)]
-    [string]$Environment = "dev",
-    
-    [Parameter(Mandatory=$true)]
-    [string]$SqlServer,
-    
-    [Parameter(Mandatory=$true)]
-    [string]$SqlDatabase,
-    
-    [Parameter(Mandatory=$false)]
-    [string]$ConfigPath = "./Config",
-    
-    [Parameter(Mandatory=$false)]
-    [string]$ModulesPath = "./Modules"
-)
+trigger:
+  branches:
+    include:
+    - main
+    - develop
+  paths:
+    include:
+    - Scripts/*
+    - Modules/*
+    - Config/*
+    - pipelines/*
 
-# Set error handling
-$ErrorActionPreference = "Stop"
+pr:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+    - Scripts/*
+    - Modules/*
+    - Config/*
+    - pipelines/*
 
-Write-Host "========================================"
-Write-Host "PowerShell SQL Operations - Main Script"
-Write-Host "========================================"
-Write-Host "Environment: $Environment"
-Write-Host "SQL Server: $SqlServer"
-Write-Host "SQL Database: $SqlDatabase"
-Write-Host "Config Path: $ConfigPath"
-Write-Host "Modules Path: $ModulesPath"
-Write-Host "Started: $(Get-Date)"
-Write-Host "========================================"
+# Global variables
+variables:
+  vmImageName: 'windows-latest'
+  servicePrincipalName: 'sp-sql-automation'
+  tableName: 'TestTable'
 
-try {
-    # Import custom modules from your Modules folder
-    Write-Host "Loading custom modules..."
-    if (Test-Path $ModulesPath) {
-        $moduleFiles = Get-ChildItem -Path $ModulesPath -Filter "*.psm1" -Recurse
-        foreach ($moduleFile in $moduleFiles) {
-            Write-Host "Importing module: $($moduleFile.Name)"
-            Import-Module $moduleFile.FullName -Force
-        }
-    }
-    
-    # Load configuration
-    Write-Host "Loading configuration..."
-    $configFile = Join-Path $ConfigPath "config-$Environment.json"
-    if (Test-Path $configFile) {
-        $config = Get-Content $configFile | ConvertFrom-Json
-        Write-Host "✓ Configuration loaded: $configFile"
-    } else {
-        Write-Warning "Configuration file not found: $configFile"
-        $config = @{}
-    }
-    
-    # Verify required modules
-    Write-Host "Verifying required modules..."
-    $requiredModules = @('SqlServer', 'Az.Accounts')
-    foreach ($module in $requiredModules) {
-        if (Get-Module -ListAvailable -Name $module) {
-            Import-Module $module -Force
-            Write-Host "✓ Module available: $module"
-        } else {
-            throw "Required module not available: $module"
-        }
-    }
-    
-    # Get SQL access token
-    Write-Host "Obtaining SQL access token..."
-    $accessToken = (Get-AzAccessToken -ResourceUrl "https://database.windows.net/").Token
-    if (-not $accessToken) {
-        throw "Failed to obtain SQL access token"
-    }
-    Write-Host "✓ SQL access token obtained"
-    
-    # Test SQL connection
-    Write-Host "Testing SQL connection..."
-    $testQuery = "SELECT USER_NAME() as ConnectedUser, GETDATE() as ConnectionTime, @@SERVERNAME as ServerName, DB_NAME() as DatabaseName"
-    $connectionTest = Invoke-Sqlcmd -ServerInstance $SqlServer -Database $SqlDatabase -AccessToken $accessToken -Query $testQuery -QueryTimeout 30
-    
-    Write-Host "✓ SQL connection successful!"
-    Write-Host "Connected as: $($connectionTest.ConnectedUser)"
-    Write-Host "Server: $($connectionTest.ServerName)"
-    Write-Host "Database: $($connectionTest.DatabaseName)"
-    Write-Host "Connection time: $($connectionTest.ConnectionTime)"
-    
-    # Execute your business operations
-    Write-Host ""
-    Write-Host "========================================"
-    Write-Host "EXECUTING BUSINESS OPERATIONS"
-    Write-Host "========================================"
-    
-    # Load and execute other scripts from Scripts folder
-    $scriptsPath = Split-Path $MyInvocation.MyCommand.Path
-    $businessScripts = Get-ChildItem -Path $scriptsPath -Filter "*.ps1" | Where-Object { $_.Name -ne "main.ps1" }
-    
-    foreach ($script in $businessScripts) {
-        Write-Host ""
-        Write-Host "Executing script: $($script.Name)"
-        try {
-            # Execute script with parameters
-            & $script.FullName -SqlServer $SqlServer -SqlDatabase $SqlDatabase -AccessToken $accessToken -Environment $Environment -Config $config
-            Write-Host "✓ $($script.Name) completed successfully"
-        } catch {
-            Write-Error "✗ $($script.Name) failed: $($_.Exception.Message)"
-            # Decide whether to continue or stop on error
-            # throw  # Uncomment to stop on first error
-        }
-    }
-    
-    # Example: Direct SQL operations in main script
-    Write-Host ""
-    Write-Host "Executing main SQL operations..."
-    
-    $mainOperations = @(
-        @{
-            Name = "Database Information"
-            Query = @"
-                SELECT 
-                    DB_NAME() as DatabaseName,
-                    COUNT(*) as TableCount,
-                    SUM(CASE WHEN TYPE = 'U' THEN 1 ELSE 0 END) as UserTables,
-                    SUM(CASE WHEN TYPE = 'S' THEN 1 ELSE 0 END) as SystemTables
-                FROM sys.objects
-                WHERE type IN ('U', 'S')
-"@
-        },
-        @{
-            Name = "Database Size"
-            Query = @"
-                SELECT 
-                    DB_NAME() as DatabaseName,
-                    CAST(SUM(CAST(FILEPROPERTY(name, 'SpaceUsed') AS bigint) * 8192.) / 1024 / 1024 AS decimal(15,2)) as UsedSpaceMB,
-                    CAST(SUM(size) * 8192. / 1024 / 1024 AS decimal(15,2)) as AllocatedSpaceMB
-                FROM sys.database_files
-                WHERE type = 0
-"@
-        }
-    )
-    
-    foreach ($operation in $mainOperations) {
-        Write-Host "Executing: $($operation.Name)"
-        $startTime = Get-Date
-        
-        try {
-            $result = Invoke-Sqlcmd -ServerInstance $SqlServer -Database $SqlDatabase -AccessToken $accessToken -Query $operation.Query -QueryTimeout 300
-            
-            $duration = ((Get-Date) - $startTime).TotalSeconds
-            Write-Host "✓ $($operation.Name) completed in $([math]::Round($duration, 2)) seconds"
-            
-            if ($result) {
-                Write-Host "Results:"
-                $result | Format-Table -AutoSize
-            }
-        } catch {
-            Write-Error "✗ $($operation.Name) failed: $($_.Exception.Message)"
-        }
-    }
-    
-    Write-Host ""
-    Write-Host "========================================"
-    Write-Host "✅ ALL OPERATIONS COMPLETED SUCCESSFULLY!"
-    Write-Host "Total execution time: $((Get-Date) - $startTime)"
-    Write-Host "Completed: $(Get-Date)"
-    Write-Host "========================================"
-    
-} catch {
-    Write-Host ""
-    Write-Host "========================================"
-    Write-Error "❌ CRITICAL ERROR: Main script execution failed"
-    Write-Host "Error: $($_.Exception.Message)"
-    Write-Host "Stack trace: $($_.ScriptStackTrace)"
-    Write-Host "========================================"
-    
-    exit 1
-}
+resources:
+  repositories:
+  - repository: self
+    type: github
+    name: your-github-username/your-repo-name  # Replace with your GitHub repo
+    ref: refs/heads/$(Build.SourceBranch)
+
+stages:
+#################################################################
+# STAGE 1: CONTINUOUS INTEGRATION
+#################################################################
+- stage: CI
+  displayName: 'Continuous Integration'
+  jobs:
+  - template: pipelines/ci-pipeline.yml
+    parameters:
+      vmImageName: $(vmImageName)
+
+#################################################################
+# STAGE 2: CONTINUOUS DEPLOYMENT - DEVELOPMENT
+#################################################################
+- stage: CD_Development
+  displayName: 'Deploy to Development'
+  dependsOn: CI
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+  jobs:
+  - template: pipelines/cd-pipeline.yml
+    parameters:
+      environment: 'Development'
+      vmImageName: $(vmImageName)
+      variableGroup: 'SQL-Database-Dev'
+      sqlServerVar: 'DEV_SQL_SERVER'
+      databaseNameVar: 'DEV_DATABASE_NAME'
+      keyVaultNameVar: 'DEV_KEY_VAULT_NAME'
+      serviceConnectionVar: 'DEV_SERVICE_CONNECTION'
+      servicePrincipalName: $(servicePrincipalName)
+      tableName: $(tableName)
+      runMode: 'single'
+      runIntervalMinutes: 1
+      maxIterations: 1
+
+#################################################################
+# STAGE 3: CONTINUOUS DEPLOYMENT - PRODUCTION
+#################################################################
+- stage: CD_Production
+  displayName: 'Deploy to Production'
+  dependsOn: CI
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - template: pipelines/cd-pipeline.yml
+    parameters:
+      environment: 'Production'
+      vmImageName: $(vmImageName)
+      variableGroup: 'SQL-Database-Prod'
+      sqlServerVar: 'PROD_SQL_SERVER'
+      databaseNameVar: 'PROD_DATABASE_NAME'
+      keyVaultNameVar: 'PROD_KEY_VAULT_NAME'
+      serviceConnectionVar: 'PROD_SERVICE_CONNECTION'
+      servicePrincipalName: $(servicePrincipalName)
+      tableName: $(tableName)
+      runMode: 'continuous'
+      runIntervalMinutes: 30
+      maxIterations: 48  # 24 hours
