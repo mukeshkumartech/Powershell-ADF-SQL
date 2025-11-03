@@ -38,7 +38,7 @@ jobs:
   variables:
   - group: ${{ parameters.variableGroup }}
   
-  strategy:
+    strategy:
     runOnce:
       deploy:
         steps:
@@ -46,10 +46,10 @@ jobs:
         - template: templates/deploy-steps.yml
           parameters:
             environment: ${{ parameters.environment }}
-            sqlServer: $(${{ parameters.sqlServerVar }})
-            databaseName: $(${{ parameters.databaseNameVar }})
-            keyVaultName: $(${{ parameters.keyVaultNameVar }})
-            serviceConnection: $(${{ parameters.serviceConnectionVar }})
+            sqlServer: $(variables['${{ parameters.sqlServerVar }}'])
+            databaseName: $(variables['${{ parameters.databaseNameVar }}'])
+            keyVaultName: $(variables['${{ parameters.keyVaultNameVar }}'])
+            serviceConnection: $(variables['${{ parameters.serviceConnectionVar }}'])
             servicePrincipalName: ${{ parameters.servicePrincipalName }}
             tableName: ${{ parameters.tableName }}
             runMode: ${{ parameters.runMode }}
