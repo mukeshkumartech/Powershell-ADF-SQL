@@ -18,7 +18,7 @@ class DataProcessor {
     [int] RunProcess() {
         Write-Host "Reading top 5 records from table $($this.TableName)..." -ForegroundColor Yellow
         
-        $querySelect = "SELECT TOP 5 EmployeeID, UserName, Department FROM [$($this.TableName)]"
+        $querySelect = "SELECT TOP 5000 EmployeeID, UserName, Department FROM [$($this.TableName)]"
         Write-Host "Executing query: $querySelect" -ForegroundColor Cyan
         $data = & $this.DbOps.GetData $querySelect
         Write-Host "Data type: $($data.GetType().FullName)" -ForegroundColor Cyan
